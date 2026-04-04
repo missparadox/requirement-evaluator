@@ -303,17 +303,30 @@ Related commits on the feature branch:
 
 ### Work in progress
 
-- Task 5 is currently in review:
-  - model client abstraction implementer work is complete
-  - target files:
-    - `backend/app/clients/model_client.py`
+- Task 5 review is complete:
+  - spec compliance review result:
+    - approved
+  - code quality review result:
+    - approved with one minor package-structure follow-up
+  - review note:
+    - `backend/app/clients/__init__.py` was missing relative to the planned package layout and has now been added while starting Task 6
+- Task 6 is complete:
+  - evaluation service create path and dedupe reuse behavior have been implemented
+  - service now computes and persists:
+    - `input_fingerprint`
+    - `skill_version`
+    - `report_template_version`
+    - `model_name`
+    - `app_version`
+    - `dedupe_key`
+  - matching `pending`, `running`, and `succeeded` tasks are now reusable through the service path
+  - matching `failed` tasks are intentionally not reused
+  - `EvaluationStore.update_metadata()` was added early because the service now needs to persist dedupe metadata during task creation
+  - completed files:
+    - `backend/app/services/evaluation_service.py`
     - `backend/tests/test_evaluation_service.py`
-  - latest Task 5 implementation commit:
-    - `e52b3a5` `feat: add model client abstraction`
-  - next action:
-    - run spec compliance review
-    - run code quality review
-    - if approved, update this log and continue to Task 6
+    - `backend/app/storage/evaluation_store.py`
+    - `backend/tests/test_evaluation_store.py`
 
 ### Known implementation notes
 
@@ -327,9 +340,8 @@ Related commits on the feature branch:
 
 ### Next recommended steps
 
-After Task 5 review, continue in this order:
+After Task 6, continue in this order:
 
-- evaluation service
 - runner
 - API endpoints
 - frontend scaffold
@@ -349,13 +361,14 @@ Use this section as the short resume point for future sessions:
   - Task 2
   - Task 3
   - Task 4
-  - Task 5 implementer done, review pending
+  - Task 5
+  - Task 6
 - latest task-completion commits:
   - `8feecf6` for Task 2 hardening
   - `a867a50` for Task 3 hardening
   - `304ffdf` for Task 4 hardening
-  - `e52b3a5` for Task 5 initial implementation
+  - `e52b3a5` for Task 5 implementation
 - current working state:
-  - worktree is clean before this log update
+  - Task 6 files are modified in the worktree and ready to commit
 - next task:
-  - finish Task 5 review, then start Task 6 evaluation service
+  - Task 7 metadata/detail store support

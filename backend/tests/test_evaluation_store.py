@@ -37,6 +37,15 @@ def test_create_evaluation_normalizes_filename_to_block_traversal(tmp_path: Path
     assert metadata["filename"] == "outside.txt"
 
 
+def test_update_metadata_persists_status_and_report_path(tmp_path: Path) -> None:
+    store = EvaluationStore(tmp_path)
+    store.create_evaluation(evaluation_id="eval_001", filename="requirements.csv", file_bytes=b"abc")
+    store.update_metadata("eval_001", {"status": "running", "report_path": "report.md"})
+    metadata = store.read_metadata("eval_001")
+    assert metadata["status"] == "running"
+    assert metadata["report_path"] == "report.md"
+
+
 def test_build_review_packet_creates_markdown_file(tmp_path: Path) -> None:
     input_path = tmp_path / "requirements.csv"
     input_path.write_text("OR需求编号,OR需求名称*,OR需求描述*\nD1,Name,Desc\n", encoding="utf-8")
