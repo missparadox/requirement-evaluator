@@ -26,7 +26,7 @@ For each dimension:
    Do not use `N/A` to avoid hard judgment on weak writing.
 
 2. Assign a score based on evidence.
-   Use the rubric weights and evidence tiers from `rubric.md`.
+   Use the rubric weights and evidence tiers from `SKILL.md`.
 
 3. Write one short reason.
    Keep the reason concrete.

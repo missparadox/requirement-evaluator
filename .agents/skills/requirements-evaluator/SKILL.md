@@ -24,7 +24,6 @@ This skill is self-contained. The default evaluation framework is fully defined 
 
 3. Review each requirement row with the model.
    Use the rubric in this file as the primary standard.
-   Use [references/rubric.md](references/rubric.md) only as a longer companion reference when needed.
    Base every score on explicit evidence in the row.
    If a dimension is not clearly addressed, score it as missing or weak instead of assuming intent.
    If a dimension is genuinely not applicable, say why. Do not silently award full credit.
@@ -139,7 +138,7 @@ Use the bundled script when possible:
 
 ```bash
 python3 scripts/evaluate_requirements.py \
-  --input /path/to/requirements.csv \
+  --input /path/to/input-file.csv \
   --output /path/to/review-packet.md
 ```
 
