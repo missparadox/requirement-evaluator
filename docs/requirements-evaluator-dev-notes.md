@@ -337,6 +337,13 @@ Related commits on the feature branch:
     - `backend/tests/test_evaluation_store.py`
 - Task 8 is complete:
   - background runner now updates task status, builds a review packet, generates a mock report, and persists the final report path
+  - review follow-up:
+    - initial Task 8 review found that exceptions left tasks stuck in `running`
+    - runner now records `failed` status, `finished_at`, and `error_message` before re-raising
+  - spec compliance review result:
+    - approved after failure-path fix
+  - code quality review result:
+    - approved
   - completed files:
     - `backend/app/runners/evaluation_runner.py`
     - `backend/tests/test_evaluation_service.py`

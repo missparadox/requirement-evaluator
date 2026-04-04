@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from unittest.mock import Mock
 
 from app.clients.model_client import StaticModelClient
 from app.runners.evaluation_runner import EvaluationRunner
@@ -53,3 +54,28 @@ def test_runner_writes_report_and_marks_success(tmp_path: Path) -> None:
     runner.run("eval_001")
     metadata = store.read_metadata("eval_001")
     assert metadata["status"] == "succeeded"
+
+
+def test_runner_marks_evaluation_failed_when_packet_building_raises(tmp_path: Path, monkeypatch) -> None:
+    store = EvaluationStore(tmp_path)
+    store.create_evaluation(
+        evaluation_id="eval_001",
+        filename="requirements.csv",
+        file_bytes="OR需求编号,OR需求名称*,OR需求描述*\nD1,N,D\n".encode("utf-8"),
+    )
+    monkeypatch.setattr(
+        "app.runners.evaluation_runner.build_review_packet",
+        Mock(side_effect=RuntimeError("boom")),
+    )
+    runner = EvaluationRunner(store=store, model_client=StaticModelClient())
+
+    try:
+        runner.run("eval_001")
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("runner.run() did not re-raise packet builder failure")
+
+    metadata = store.read_metadata("eval_001")
+    assert metadata["status"] == "failed"
+    assert metadata["error_message"] == "boom"
