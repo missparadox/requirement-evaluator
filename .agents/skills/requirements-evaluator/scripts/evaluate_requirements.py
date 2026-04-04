@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import importlib.util
 import json
 import re
 from collections import defaultdict
@@ -162,6 +163,28 @@ def build_dimensions() -> List[Dict[str, object]]:
     return [dict(item) for item in DEFAULT_DIMENSIONS]
 
 
+def missing_runtime_dependencies(path: Path) -> List[str]:
+    suffix = path.suffix.lower()
+    missing = []
+    if suffix in {".xlsx", ".xlsm"} and importlib.util.find_spec("openpyxl") is None:
+        missing.append("openpyxl")
+    return missing
+
+
+def dependency_install_hint(packages: Sequence[str]) -> str:
+    joined = " ".join(packages)
+    return f"python3 -m pip install {joined}"
+
+
+def ensure_runtime_dependencies(path: Path) -> None:
+    missing = missing_runtime_dependencies(path)
+    if not missing:
+        return
+    package_list = ", ".join(missing)
+    hint = dependency_install_hint(missing)
+    raise SystemExit(f"缺少运行依赖: {package_list}。请先执行: {hint}")
+
+
 def read_csv(path: Path) -> List[RowRecord]:
     with path.open("r", encoding="utf-8-sig", newline="") as handle:
         rows = list(csv.reader(handle))
@@ -221,6 +244,7 @@ def read_json(path: Path) -> List[RowRecord]:
 
 
 def read_records(path: Path) -> List[RowRecord]:
+    ensure_runtime_dependencies(path)
     suffix = path.suffix.lower()
     if suffix == ".csv":
         return read_csv(path)

@@ -143,6 +143,25 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertEqual(packet["item_count"], 1)
         self.assertEqual(packet["items"][0]["name"], "DNS配置")
 
+    def test_missing_excel_dependency_message_contains_install_command(self):
+        original_find_spec = self.module.importlib.util.find_spec
+
+        def fake_find_spec(name):
+            if name == "openpyxl":
+                return None
+            return original_find_spec(name)
+
+        self.module.importlib.util.find_spec = fake_find_spec
+        try:
+            with self.assertRaises(SystemExit) as ctx:
+                self.module.ensure_runtime_dependencies(Path("input.xlsx"))
+        finally:
+            self.module.importlib.util.find_spec = original_find_spec
+
+        message = str(ctx.exception)
+        self.assertIn("openpyxl", message)
+        self.assertIn("python3 -m pip install openpyxl", message)
+
 
 if __name__ == "__main__":
     unittest.main()

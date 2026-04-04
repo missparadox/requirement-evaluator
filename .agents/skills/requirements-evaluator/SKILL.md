@@ -191,6 +191,23 @@ Behavior:
 - writes a review packet for the model
 - does not generate the final scores or the final report on its own
 
+## Dependencies
+
+Check runtime dependencies before using the script.
+Use [references/dependencies.md](references/dependencies.md) for the concrete package list and install command.
+
+Current rule:
+
+- `.csv` and `.json` do not need extra Python packages
+- `.xlsx` and `.xlsm` require `openpyxl`
+
+If a dependency is missing:
+
+1. Detect it before continuing.
+2. Tell the user which package is missing.
+3. Use the bash tool to run the install command when appropriate.
+4. Re-run the script after installation.
+
 ## Recommended Invocation
 
 If the input is tabular, generate a review packet first, then ask the model to perform the final review.
