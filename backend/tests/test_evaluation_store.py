@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from app.adapters.packet_builder import build_review_packet
 from app.storage.evaluation_store import EvaluationStore
 
 
@@ -32,3 +33,11 @@ def test_create_evaluation_normalizes_filename_to_block_traversal(tmp_path: Path
     assert record["original_file_path"].read_bytes() == b"safe"
     metadata = json.loads(record["metadata_path"].read_text(encoding="utf-8"))
     assert metadata["filename"] == "outside.txt"
+
+
+def test_build_review_packet_creates_markdown_file(tmp_path: Path) -> None:
+    input_path = tmp_path / "requirements.csv"
+    input_path.write_text("OR需求编号,OR需求名称*,OR需求描述*\nD1,Name,Desc\n", encoding="utf-8")
+    output_path = tmp_path / "packet.md"
+    build_review_packet(input_path=input_path, output_path=output_path)
+    assert output_path.exists()
