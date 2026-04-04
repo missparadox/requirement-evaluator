@@ -93,6 +93,31 @@ Approved state-specific copy:
 
 The message may mention the current state, but the layout must remain the same.
 
+### Floating Refresh Indicator
+
+While the page is in `pending` or `running`, show a lightweight floating refresh indicator.
+
+Approved rules:
+
+- position: bottom-right floating layer
+- style: light, non-blocking, and visually subordinate to the main page content
+- visible only during `pending` and `running`
+- hidden automatically on `succeeded` and `failed`
+
+Approved content form:
+
+- status-refresh label
+- short text explanation
+- circular countdown indicator
+
+The circular countdown indicator should:
+
+- show remaining seconds in the center
+- use the outer ring to represent the current polling-cycle progress
+- reset to `20s` after each polling cycle completes
+
+This floating layer exists to reduce waiting anxiety without interrupting the primary reading structure of the page.
+
 ## Polling Rules
 
 The detail page polls every:
