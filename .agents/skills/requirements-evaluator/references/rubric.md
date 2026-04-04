@@ -70,6 +70,8 @@ Bias the interpretation toward implementation and test readiness. A document wit
 
 Use evidence-based tiering:
 
+- Mark clearly non-applicable dimensions as `N/A` and exclude them from the denominator instead of scoring them as missing.
+
 - `Excellent`: 90% to 100% of the dimension weight
   The document addresses the dimension directly, concretely, and with little ambiguity.
 
@@ -103,6 +105,7 @@ Use evidence-based tiering:
 - parameters, allowed ranges, units, defaults, and requiredness are explicit
 - system behavior is broken into normal flow and exceptional flow
 - acceptance criteria or test points are directly derivable
+- explicit normal flow plus exceptional flow can count as strong implicit testability even when a separate test section is absent
 - security, logging, compliance, and audit expectations are written down
 - assumptions and dependencies are explicit
 - OR and DR content reinforce rather than contradict each other

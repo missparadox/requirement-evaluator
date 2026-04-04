@@ -26,7 +26,7 @@ class RequirementsEvaluatorTests(unittest.TestCase):
         self.module = load_module()
         self.dimensions = self.module.DEFAULT_DIMENSIONS
 
-    def test_technical_requirement_can_score_passing_without_or_value_fields(self):
+    def test_technical_requirement_can_score_well_when_non_applicable_dimensions_are_absent(self):
         record = make_record(
             self.module,
             {
@@ -47,8 +47,8 @@ class RequirementsEvaluatorTests(unittest.TestCase):
 
         result = self.module.score_row(record, self.dimensions)
 
-        self.assertGreaterEqual(result["total"], 55)
-        self.assertNotEqual(result["grade"], "D")
+        self.assertGreaterEqual(result["total"], 65)
+        self.assertIn(result["grade"], {"B", "A"})
 
     def test_non_performance_requirement_does_not_get_performance_credit_without_explicit_target(self):
         record = make_record(

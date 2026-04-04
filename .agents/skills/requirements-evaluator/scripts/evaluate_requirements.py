@@ -323,16 +323,27 @@ def score_row(record: RowRecord, dimensions: List[Dict[str, object]]) -> Dict[st
     missing: List[str] = []
     suggestions: List[str] = []
 
+    def is_applicable(key: str) -> bool:
+        if key == "dr_performance":
+            return contains_any(all_text, PERFORMANCE_TERMS)
+        if key == "dr_hardware":
+            return contains_any(all_text, HARDWARE_TERMS)
+        if key == "cross_dependencies":
+            return bool(ctx["ds_dependencies"] or ctx["tds_dependencies"] or contains_any(all_text, DEPENDENCY_TERMS))
+        return True
+
     def add_result(key: str, ratio: float, reason: str) -> None:
         dim = next(item for item in dimensions if item["key"] == key)
         weight = int(dim["weight"])
+        applicable = is_applicable(key)
         score = score_bucket(ratio, weight)
         scores.append(
             {
                 "key": key,
                 "name": dim["name"],
                 "weight": weight,
-                "score": score,
+                "score": score if applicable else 0,
+                "applicable": applicable,
                 "reason": reason,
             }
         )
@@ -405,6 +416,8 @@ def score_row(record: RowRecord, dimensions: List[Dict[str, object]]) -> Dict[st
         ratio += 0.1
     if ctx["dr_operation"] and has_enumeration(ctx["dr_desc"]):
         ratio += 0.1
+    if contains_any(dr_text, ["正常过程", "异常过程", "日志", "审计"]):
+        ratio += 0.1
     add_result("dr_testability", ratio, "看是否能直接据此写出测试点或验收方法。")
 
     vague_hits = count_any(dr_text, VAGUE_TERMS)
@@ -470,7 +483,9 @@ def score_row(record: RowRecord, dimensions: List[Dict[str, object]]) -> Dict[st
         ratio += 0.3
     add_result("cross_exceptions", ratio, "看是否覆盖异常、边界输入、失败处理和审计。")
 
-    total = sum(item["score"] for item in scores)
+    applicable_weight = sum(item["weight"] for item in scores if item["applicable"]) or 1
+    earned_weight = sum(item["score"] for item in scores if item["applicable"])
+    total = int(round(earned_weight / applicable_weight * 100))
     grade = grade_for_score(total)
 
     if not ctx["customer_problem"] and not ctx["value_desc"]:
@@ -527,9 +542,9 @@ def dedupe(items: Sequence[str]) -> List[str]:
 def grade_for_score(score: int) -> str:
     if score >= 80:
         return "A"
-    if score >= 65:
+    if score >= 60:
         return "B"
-    if score >= 50:
+    if score >= 45:
         return "C"
     return "D"
 
@@ -537,9 +552,9 @@ def grade_for_score(score: int) -> str:
 def overall_judgment(avg_score: float) -> str:
     if avg_score >= 80:
         return "整体已接近优秀设计标准，但仍需检查个别薄弱项。"
-    if avg_score >= 65:
+    if avg_score >= 60:
         return "整体具备一定设计基础，但还未稳定达到优秀设计标准。"
-    if avg_score >= 50:
+    if avg_score >= 45:
         return "整体处于可用但偏粗糙的阶段，距离优秀设计标准仍有明显差距。"
     return "整体未达到优秀设计标准，需求文档的信息完整性和可执行性不足。"
 
@@ -547,9 +562,9 @@ def overall_judgment(avg_score: float) -> str:
 def item_judgment(score: int) -> str:
     if score >= 80:
         return "该需求基本达到优秀设计标准，仅需补充少量边角信息。"
-    if score >= 65:
+    if score >= 60:
         return "该需求基础较好，但仍需补充少量验证和边界细节。"
-    if score >= 50:
+    if score >= 45:
         return "该需求具备一定设计基础，但距离优秀设计标准还有明显差距。"
     return "该需求未达到优秀设计标准，信息完整性和可执行性不足。"
 
@@ -561,7 +576,10 @@ def render_report(input_path: Path, dims_path: Path | None, results: List[Dict[s
     grade_counts = Counter(item["grade"] for item in results)
     weak_counter = Counter()
     for result in results:
-        ranked = sorted(result["scores"], key=lambda item: item["score"] / max(item["weight"], 1))
+        ranked = sorted(
+            [item for item in result["scores"] if item["applicable"]],
+            key=lambda item: item["score"] / max(item["weight"], 1),
+        )
         for item in ranked[:3]:
             weak_counter[item["name"]] += 1
 
@@ -573,7 +591,7 @@ def render_report(input_path: Path, dims_path: Path | None, results: List[Dict[s
     lines.append(f"- 数据源: `{input_path}`")
     lines.append(f"- 维度来源: `{dims_path}`、输入表头、superpowers 需求设计标准" if dims_path else "- 维度来源: 输入表头与 superpowers 需求设计标准")
     lines.append(f"- 需求条目数: {len(results)}")
-    lines.append("- 评分方法: 100 分制，优先采用用户自定义维度，再补充跨层设计质量维度")
+    lines.append("- 评分方法: 100 分制，优先采用用户自定义维度，再补充跨层设计质量维度；对明确不适用的维度按 N/A 处理，不计入分母")
     lines.append(f"- 平均分: {avg_score:.1f}")
     lines.append(f"- 中位分: {median_score:.1f}")
     lines.append(f"- 等级分布: A={grade_counts.get('A', 0)}，B={grade_counts.get('B', 0)}，C={grade_counts.get('C', 0)}，D={grade_counts.get('D', 0)}")
@@ -606,7 +624,8 @@ def render_report(input_path: Path, dims_path: Path | None, results: List[Dict[s
         lines.append("| 维度 | 分数 | 说明 |")
         lines.append("| --- | ---: | --- |")
         for item in result["scores"]:
-            lines.append(f"| {item['name']} | {item['score']}/{item['weight']} | {item['reason']} |")
+            score_text = f"{item['score']}/{item['weight']}" if item["applicable"] else "N/A"
+            lines.append(f"| {item['name']} | {score_text} | {item['reason']} |")
         lines.append("")
         lines.append("关键证据：")
         if result["evidence"]:
