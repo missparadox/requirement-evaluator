@@ -14,20 +14,20 @@ from typing import Dict, List, Sequence
 
 
 DEFAULT_DIMENSIONS = [
-    {"key": "or_user_language", "name": "OR-用户语言描述", "weight": 10},
-    {"key": "or_scenario", "name": "OR-应用场景", "weight": 10},
-    {"key": "or_user_value", "name": "OR-用户价值", "weight": 10},
-    {"key": "or_constraints", "name": "OR-约束和限制", "weight": 5},
+    {"key": "or_user_language", "name": "OR-用户语言描述", "weight": 6},
+    {"key": "or_scenario", "name": "OR-应用场景", "weight": 6},
+    {"key": "or_user_value", "name": "OR-用户价值", "weight": 4},
+    {"key": "or_constraints", "name": "OR-约束和限制", "weight": 4},
     {"key": "dr_security", "name": "DR-安全分析", "weight": 8},
-    {"key": "dr_technical", "name": "DR-技术描述", "weight": 8},
-    {"key": "dr_testability", "name": "DR-可测试性", "weight": 8},
-    {"key": "dr_ambiguity", "name": "DR-无歧义性", "weight": 4},
+    {"key": "dr_technical", "name": "DR-技术描述", "weight": 14},
+    {"key": "dr_testability", "name": "DR-可测试性", "weight": 14},
+    {"key": "dr_ambiguity", "name": "DR-无歧义性", "weight": 8},
     {"key": "dr_performance", "name": "DR-性能需求", "weight": 4},
-    {"key": "dr_hardware", "name": "DR-硬件分析", "weight": 3},
-    {"key": "cross_scope", "name": "跨层-范围与边界", "weight": 8},
+    {"key": "dr_hardware", "name": "DR-硬件分析", "weight": 2},
+    {"key": "cross_scope", "name": "跨层-范围与边界", "weight": 10},
     {"key": "cross_dependencies", "name": "跨层-假设与依赖", "weight": 8},
-    {"key": "cross_traceability", "name": "跨层-一致性与可追踪", "weight": 7},
-    {"key": "cross_exceptions", "name": "跨层-异常处理与边界条件", "weight": 7},
+    {"key": "cross_traceability", "name": "跨层-一致性与可追踪", "weight": 4},
+    {"key": "cross_exceptions", "name": "跨层-异常处理与边界条件", "weight": 10},
 ]
 
 VAGUE_TERMS = [
@@ -173,7 +173,15 @@ def parse_dimensions_file(path: Path | None) -> Dict[str, Dict[str, object]]:
 def build_dimensions(path: Path | None) -> List[Dict[str, object]]:
     custom = parse_dimensions_file(path)
     by_key = {item["key"]: dict(item) for item in DEFAULT_DIMENSIONS}
-    by_key.update(custom)
+    for key, item in custom.items():
+        if key in by_key:
+            merged = dict(by_key[key])
+            for field in ("name", "description"):
+                if item.get(field):
+                    merged[field] = item[field]
+            by_key[key] = merged
+        else:
+            by_key[key] = dict(item)
     ordered_keys = [item["key"] for item in DEFAULT_DIMENSIONS]
     return [by_key[key] for key in ordered_keys]
 
@@ -393,6 +401,10 @@ def score_row(record: RowRecord, dimensions: List[Dict[str, object]]) -> Dict[st
         ratio += 0.25
     if ctx["dr_param"]:
         ratio += 0.15
+    if contains_any(dr_text, EXCEPTION_TERMS):
+        ratio += 0.1
+    if ctx["dr_operation"] and has_enumeration(ctx["dr_desc"]):
+        ratio += 0.1
     add_result("dr_testability", ratio, "看是否能直接据此写出测试点或验收方法。")
 
     vague_hits = count_any(dr_text, VAGUE_TERMS)
@@ -513,31 +525,31 @@ def dedupe(items: Sequence[str]) -> List[str]:
 
 
 def grade_for_score(score: int) -> str:
-    if score >= 85:
+    if score >= 80:
         return "A"
-    if score >= 70:
+    if score >= 65:
         return "B"
-    if score >= 55:
+    if score >= 50:
         return "C"
     return "D"
 
 
 def overall_judgment(avg_score: float) -> str:
-    if avg_score >= 85:
+    if avg_score >= 80:
         return "整体已接近优秀设计标准，但仍需检查个别薄弱项。"
-    if avg_score >= 70:
+    if avg_score >= 65:
         return "整体具备一定设计基础，但还未稳定达到优秀设计标准。"
-    if avg_score >= 55:
+    if avg_score >= 50:
         return "整体处于可用但偏粗糙的阶段，距离优秀设计标准仍有明显差距。"
     return "整体未达到优秀设计标准，需求文档的信息完整性和可执行性不足。"
 
 
 def item_judgment(score: int) -> str:
-    if score >= 85:
+    if score >= 80:
         return "该需求基本达到优秀设计标准，仅需补充少量边角信息。"
-    if score >= 70:
+    if score >= 65:
         return "该需求基础较好，但仍需补充少量验证和边界细节。"
-    if score >= 55:
+    if score >= 50:
         return "该需求具备一定设计基础，但距离优秀设计标准还有明显差距。"
     return "该需求未达到优秀设计标准，信息完整性和可执行性不足。"
 
