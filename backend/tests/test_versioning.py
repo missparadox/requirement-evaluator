@@ -1,4 +1,4 @@
-from app.core.versioning import build_dedupe_key, sha256_text
+from app.core.versioning import build_dedupe_key, sha256_bytes, sha256_text
 
 
 def test_sha256_text_is_stable() -> None:
