@@ -207,3 +207,148 @@ These boundaries should hold unless there is a strong reason to change them:
 - the rubric lives in `SKILL.md`
 - the output template stays in `report-template.md`
 - packet and final report are separate artifacts
+
+## Service Development Progress
+
+### Current branch and workflow
+
+- active implementation branch: `feature/requirements-evaluator-service`
+- implementation is being executed from a git worktree under `.worktrees/`
+- development is following the superpowers flow:
+  - brainstorming
+  - written spec
+  - written implementation plan
+  - subagent-driven task execution
+
+### Scope locked for phase 1
+
+Phase 1 currently includes only:
+
+- frontend-backend separated architecture
+- FastAPI backend
+- React + TypeScript + Vite frontend
+- local filesystem artifact storage
+- asynchronous evaluation jobs
+- dedupe based on input and version material
+- upload page
+- evaluation detail page
+- Markdown report rendering
+- Markdown report download
+
+Phase 1 explicitly excludes:
+
+- history page
+- delete API
+- packet inspection UI
+- database-backed metadata storage
+
+### Design decisions confirmed
+
+- frontend stack:
+  - React
+  - TypeScript
+  - Vite
+  - React Router
+  - TanStack Query
+  - pnpm
+- backend stack:
+  - Python
+  - FastAPI
+  - in-process asynchronous job execution
+- storage:
+  - metadata and artifacts stored on local filesystem in phase 1
+- future roadmap:
+  - SQLite will be introduced later for metadata only
+  - original upload, packet, and report files remain on local disk
+
+### Completed implementation work
+
+As of the current session, the following implementation tasks are complete on the feature branch:
+
+- Task 1: backend scaffold and core configuration
+  - FastAPI app entrypoint created
+  - backend package scaffold created
+  - config and repository path helpers created
+  - initial evaluation model created
+  - backend smoke test added
+- Task 2: versioning and dedupe helpers
+  - SHA-256 helper functions added
+  - app version detection helper added
+  - dedupe key builder added
+  - regression coverage added for hashing and missing-git fallback
+- Task 3: file-based evaluation store
+  - file-backed `EvaluationStore` added
+  - evaluation directory creation implemented
+  - original upload persistence implemented
+  - metadata.json persistence implemented
+  - filename normalization added to prevent path traversal
+  - regression coverage added for metadata contents and traversal-style input
+- Task 4: packet builder adapter
+  - thin backend adapter added around the existing packet builder script
+  - adapter shells out with `sys.executable`
+  - subprocess failures now include input and output paths
+  - regression coverage added for both success and failure paths
+
+Related commits on the feature branch:
+
+- `be23f45` `feat: scaffold backend application`
+- `805af3d` `fix: align backend scaffold dependencies and paths`
+- `8903409` `feat: add evaluation versioning helpers`
+- `066b657` `fix: align versioning test import`
+- `8feecf6` `fix: harden versioning helpers`
+- `1d23682` `feat: add file-based evaluation store`
+- `a867a50` `fix: harden evaluation store filenames`
+- `a2fa028` `feat: add packet builder adapter`
+- `304ffdf` `fix: improve packet builder adapter errors`
+
+### Work in progress
+
+- Task 5 is the next active implementation target:
+  - model client abstraction
+  - target files:
+    - `backend/app/clients/model_client.py`
+    - `backend/tests/test_evaluation_service.py`
+
+### Known implementation notes
+
+- local Python test execution currently relies on a worktree-local virtual environment rather than the host interpreter
+- review and implementation are being done task-by-task with subagents, and each completed task is checked with:
+  - spec compliance review
+  - code quality review
+- there are pre-existing untracked `__pycache__` directories under `.agents/skills/requirements-evaluator/...`
+  - they are not part of the service implementation work
+  - they have been intentionally left untouched
+
+### Next recommended steps
+
+After Task 4, continue in this order:
+
+- model client abstraction
+- evaluation service
+- runner
+- API endpoints
+- frontend scaffold
+- upload flow
+- detail page and Markdown download
+- development log refresh
+- README for service mode and standalone skill mode
+
+### Controller Summary
+
+Use this section as the short resume point for future sessions:
+
+- branch:
+  - `feature/requirements-evaluator-service`
+- completed tasks:
+  - Task 1
+  - Task 2
+  - Task 3
+  - Task 4
+- latest task-completion commits:
+  - `8feecf6` for Task 2 hardening
+  - `a867a50` for Task 3 hardening
+  - `304ffdf` for Task 4 hardening
+- current working state:
+  - only `docs/requirements-evaluator-dev-notes.md` is intentionally modified in the worktree
+- next task:
+  - Task 5 model client abstraction
