@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from app.models.evaluation import EvaluationDetail
+
 
 class EvaluationStore:
     def __init__(self, root: Path) -> None:
@@ -48,3 +50,24 @@ class EvaluationStore:
             encoding="utf-8",
         )
         return metadata
+
+    def read_detail(self, evaluation_id: str) -> EvaluationDetail:
+        metadata = self.read_metadata(evaluation_id)
+        report_markdown = None
+        report_path = metadata.get("report_path")
+        if report_path:
+            path = Path(report_path)
+            if path.exists():
+                report_markdown = path.read_text(encoding="utf-8")
+        return EvaluationDetail.model_validate(
+            {
+                "evaluation_id": metadata["evaluation_id"],
+                "status": metadata["status"],
+                "filename": metadata["filename"],
+                "created_at": metadata["created_at"],
+                "started_at": metadata.get("started_at"),
+                "finished_at": metadata.get("finished_at"),
+                "error_message": metadata.get("error_message"),
+                "report_markdown": report_markdown,
+            }
+        )

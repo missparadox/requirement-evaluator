@@ -327,6 +327,14 @@ Related commits on the feature branch:
     - `backend/tests/test_evaluation_service.py`
     - `backend/app/storage/evaluation_store.py`
     - `backend/tests/test_evaluation_store.py`
+- Task 7 is complete:
+  - `EvaluationStore.read_detail()` now returns the backend detail model with optional report Markdown content
+  - Task 7 plan note:
+    - `read_metadata()` and `update_metadata()` were already implemented in Task 6 because the create-or-reuse service needed metadata persistence before Task 7
+    - this task completed the remaining detail-read capability without changing later task boundaries
+  - completed files:
+    - `backend/app/storage/evaluation_store.py`
+    - `backend/tests/test_evaluation_store.py`
 
 ### Known implementation notes
 
@@ -340,7 +348,7 @@ Related commits on the feature branch:
 
 ### Next recommended steps
 
-After Task 6, continue in this order:
+After Task 7, continue in this order:
 
 - runner
 - API endpoints
@@ -363,12 +371,13 @@ Use this section as the short resume point for future sessions:
   - Task 4
   - Task 5
   - Task 6
+  - Task 7
 - latest task-completion commits:
   - `8feecf6` for Task 2 hardening
   - `a867a50` for Task 3 hardening
   - `304ffdf` for Task 4 hardening
   - `e52b3a5` for Task 5 implementation
 - current working state:
-  - Task 6 files are modified in the worktree and ready to commit
+  - Task 7 files are modified in the worktree and ready to commit
 - next task:
-  - Task 7 metadata/detail store support
+  - Task 8 evaluation runner

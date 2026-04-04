@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 from app.adapters.packet_builder import build_review_packet
+from app.models.evaluation import EvaluationDetail
 from app.storage.evaluation_store import EvaluationStore
 
 
@@ -44,6 +45,29 @@ def test_update_metadata_persists_status_and_report_path(tmp_path: Path) -> None
     metadata = store.read_metadata("eval_001")
     assert metadata["status"] == "running"
     assert metadata["report_path"] == "report.md"
+
+
+def test_read_detail_includes_report_markdown_when_report_exists(tmp_path: Path) -> None:
+    store = EvaluationStore(tmp_path)
+    store.create_evaluation(evaluation_id="eval_001", filename="requirements.csv", file_bytes=b"abc")
+    report_path = tmp_path / "eval_001" / "report.md"
+    report_path.write_text("# Report\n", encoding="utf-8")
+    store.update_metadata(
+        "eval_001",
+        {
+            "status": "succeeded",
+            "report_path": str(report_path),
+            "started_at": "2026-04-05T01:00:00+00:00",
+            "finished_at": "2026-04-05T01:01:00+00:00",
+        },
+    )
+
+    detail = store.read_detail("eval_001")
+
+    assert isinstance(detail, EvaluationDetail)
+    assert detail.evaluation_id == "eval_001"
+    assert detail.status == "succeeded"
+    assert detail.report_markdown == "# Report\n"
 
 
 def test_build_review_packet_creates_markdown_file(tmp_path: Path) -> None:
