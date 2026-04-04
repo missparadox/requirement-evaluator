@@ -303,11 +303,17 @@ Related commits on the feature branch:
 
 ### Work in progress
 
-- Task 5 is the next active implementation target:
-  - model client abstraction
+- Task 5 is currently in review:
+  - model client abstraction implementer work is complete
   - target files:
     - `backend/app/clients/model_client.py`
     - `backend/tests/test_evaluation_service.py`
+  - latest Task 5 implementation commit:
+    - `e52b3a5` `feat: add model client abstraction`
+  - next action:
+    - run spec compliance review
+    - run code quality review
+    - if approved, update this log and continue to Task 6
 
 ### Known implementation notes
 
@@ -321,9 +327,8 @@ Related commits on the feature branch:
 
 ### Next recommended steps
 
-After Task 4, continue in this order:
+After Task 5 review, continue in this order:
 
-- model client abstraction
 - evaluation service
 - runner
 - API endpoints
@@ -344,11 +349,13 @@ Use this section as the short resume point for future sessions:
   - Task 2
   - Task 3
   - Task 4
+  - Task 5 implementer done, review pending
 - latest task-completion commits:
   - `8feecf6` for Task 2 hardening
   - `a867a50` for Task 3 hardening
   - `304ffdf` for Task 4 hardening
+  - `e52b3a5` for Task 5 initial implementation
 - current working state:
-  - only `docs/requirements-evaluator-dev-notes.md` is intentionally modified in the worktree
+  - worktree is clean before this log update
 - next task:
-  - Task 5 model client abstraction
+  - finish Task 5 review, then start Task 6 evaluation service
