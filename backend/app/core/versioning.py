@@ -16,12 +16,15 @@ def sha256_file(path: Path) -> str:
 
 
 def detect_app_version(repo_root: Path) -> str:
-    result = subprocess.run(
-        ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return "dev"
     if result.returncode != 0:
         return "dev"
     return result.stdout.strip() or "dev"
