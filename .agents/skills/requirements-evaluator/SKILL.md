@@ -28,7 +28,6 @@ This skill is self-contained. The default evaluation framework is fully defined 
    If a dimension is not clearly addressed, score it as missing or weak instead of assuming intent.
    If a dimension is genuinely not applicable, say why. Do not silently award full credit.
    Do not delegate the final score to a deterministic script.
-   Follow the detailed review procedure in [references/model-review-workflow.md](references/model-review-workflow.md) when you need a repeatable scoring flow.
 
 4. Produce a Chinese report.
    Follow [references/report-template.md](references/report-template.md).
@@ -132,6 +131,48 @@ Common positive signals:
 - assumptions and dependencies are explicit
 - OR and DR content reinforce rather than contradict each other
 
+## Review Procedure
+
+For each requirement row:
+
+1. Identify the requirement first.
+   Capture row index, requirement ID, and requirement name.
+
+2. Read staged fields together.
+   Read OR, DR, DS, TDR, and TDS as one chain when present.
+   Do not score OR and DR in isolation if they clearly describe the same requirement at different levels.
+
+3. Build a short evidence view.
+   Extract the few lines that most strongly support or weaken the requirement.
+   Prefer explicit statements over inferred intent.
+
+4. Score each dimension.
+   Decide whether the dimension is applicable.
+   Mark `N/A` only when the requirement genuinely does not call for that dimension.
+   Write one short reason per dimension.
+
+5. Make a readiness judgment.
+   Ask whether an engineer can implement it without major assumptions, whether a tester can derive meaningful test cases, and whether failure paths, limits, and dependencies are visible enough to reduce rework.
+
+6. Write per-requirement findings.
+   Output:
+   - score and grade
+   - 2 to 4 key evidence bullets
+   - 1 to 3 red flags
+   - 1 to 4 missing items
+   - 2 to 5 revision actions
+
+7. Write cross-requirement findings.
+   Identify repeated weak dimensions, separate structural issues from row-specific issues, call out the best-written rows as templates, and summarize whether the whole set is ready for design review, implementation, and system test design.
+
+Avoid these failure modes:
+
+- do not reward a requirement for information that exists only in neighboring rows unless traceability is explicit
+- do not infer user value from technical detail unless the document states the value or problem
+- do not over-penalize business framing if technical readiness is strong; explain the imbalance instead
+- do not produce generic recommendations like “完善需求”; name the missing field or behavior
+- do not let the packet structure force shallow review
+
 ## Local Script
 
 Use the bundled script when possible:
@@ -153,13 +194,33 @@ Behavior:
 ## Recommended Invocation
 
 If the input is tabular, generate a review packet first, then ask the model to perform the final review.
-Use [references/recommended-prompt.md](references/recommended-prompt.md) as the starting prompt pattern.
 
 Preferred flow:
 
 1. Run the script to build a review packet.
-2. Load the packet, rubric, and report template.
+2. Load the packet, this `SKILL.md`, and the report template.
 3. Ask the model to produce the final Chinese evaluation report.
+
+Recommended prompt pattern:
+
+```text
+Use $requirements-evaluator at <skill-path>.
+
+Read the requirement review packet at <packet-path>.
+Use the rubric defined in <skill-path>/SKILL.md as the scoring basis.
+Read the report template at <skill-path>/references/report-template.md.
+
+Evaluate the requirements with the model, not with deterministic scripting.
+Output a Chinese Markdown report.
+For each requirement:
+- give a weighted score and grade
+- cite concrete evidence from the row
+- list red flags
+- list missing items
+- give prioritized revision advice
+
+Then summarize cross-requirement weaknesses, strongest examples, and whether the set is ready for implementation and testing.
+```
 
 ## Notes
 
