@@ -6,6 +6,7 @@ from uuid import uuid4
 from app.core.config import get_settings
 from app.core.paths import REPO_ROOT, REPORT_TEMPLATE_FILE, SKILL_FILE
 from app.core.versioning import build_dedupe_key, detect_app_version, sha256_bytes, sha256_file
+from app.models.evaluation import EvaluationDetail
 
 
 @dataclass
@@ -84,3 +85,6 @@ class EvaluationService:
                 continue
             return metadata
         return None
+
+    def get_detail(self, evaluation_id: str) -> EvaluationDetail:
+        return self.store.read_detail(evaluation_id)

@@ -347,6 +347,23 @@ Related commits on the feature branch:
   - completed files:
     - `backend/app/runners/evaluation_runner.py`
     - `backend/tests/test_evaluation_service.py`
+- Task 9 is complete:
+  - API now exposes `POST /api/evaluations` and `GET /api/evaluations/{id}`
+  - Task 9 implementation note:
+    - `EvaluationService.get_detail()` was added as a Task 9-local support method because the API detail route depends on the service layer, but earlier tasks only added store-level detail reads
+  - review follow-up:
+    - initial Task 9 review found that import-time service construction polluted the repo data directory during tests
+    - routes now resolve the service per request from current settings, and API tests pin a temporary data directory
+    - initial Task 9 review also found that missing evaluation IDs returned 500; the route now converts missing metadata to 404
+  - spec compliance review result:
+    - approved after route-scoping and 404 fixes
+  - code quality review result:
+    - approved
+  - completed files:
+    - `backend/app/api/routes/evaluations.py`
+    - `backend/app/main.py`
+    - `backend/app/services/evaluation_service.py`
+    - `backend/tests/test_evaluations_api.py`
 
 ### Known implementation notes
 
@@ -360,9 +377,8 @@ Related commits on the feature branch:
 
 ### Next recommended steps
 
-After Task 8, continue in this order:
+After Task 9, continue in this order:
 
-- API endpoints
 - frontend scaffold
 - upload flow
 - detail page and Markdown download
@@ -384,12 +400,13 @@ Use this section as the short resume point for future sessions:
   - Task 6
   - Task 7
   - Task 8
+  - Task 9
 - latest task-completion commits:
   - `8feecf6` for Task 2 hardening
   - `a867a50` for Task 3 hardening
   - `304ffdf` for Task 4 hardening
   - `e52b3a5` for Task 5 implementation
 - current working state:
-  - Task 8 files are modified in the worktree and ready to commit
+  - Task 9 files are modified in the worktree and ready to commit
 - next task:
-  - Task 9 evaluation API endpoints
+  - Task 10 configurable model client
