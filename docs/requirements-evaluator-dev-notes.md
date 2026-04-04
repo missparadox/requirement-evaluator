@@ -455,6 +455,33 @@ Related commits on the feature branch:
     - `frontend/src/pages/EvaluationDetailPage.test.tsx`
     - `frontend/src/router/index.tsx`
     - `frontend/src/styles/global.css`
+- Task 14 is complete:
+  - runtime artifacts are now ignored and the local `data/` directory exists with a tracked placeholder so service runs do not dirty the worktree
+  - spec compliance review result:
+    - approved
+  - code quality review result:
+    - approved
+  - completed files:
+    - `.gitignore`
+    - `data/.gitkeep`
+- Task 15 is complete:
+  - the service development progress section was refreshed to reflect the implemented backend and frontend scope
+  - Task 15 plan note:
+    - the plan originally assumed the section did not exist, but the task was adjusted to refresh the existing section instead of duplicating it
+  - spec compliance review result:
+    - approved after plan alignment
+  - code quality review result:
+    - approved
+  - completed files:
+    - `docs/requirements-evaluator-dev-notes.md`
+- Task 16 is complete:
+  - the repository now has a top-level README covering service mode setup, standalone skill usage, environment variables, runtime storage behavior, and agent integration notes
+  - spec compliance review result:
+    - approved
+  - code quality review result:
+    - approved
+  - completed files:
+    - `README.md`
 
 ### Known implementation notes
 
@@ -468,10 +495,11 @@ Related commits on the feature branch:
 
 ### Next recommended steps
 
-After Task 13, continue in this order:
+After Task 16, the implementation plan is complete. Recommended follow-up work is now post-plan hardening:
 
-- development log refresh
-- README for service mode and standalone skill mode
+- replace the placeholder frontend upload/detail data flow with real API mutation and polling hooks
+- tighten production model client prompt shaping and credential validation
+- decide how to integrate the finished branch
 
 ### Controller Summary
 
@@ -493,12 +521,25 @@ Use this section as the short resume point for future sessions:
   - Task 11
   - Task 12
   - Task 13
+  - Task 14
+  - Task 15
+  - Task 16
 - latest task-completion commits:
   - `8feecf6` for Task 2 hardening
   - `a867a50` for Task 3 hardening
   - `304ffdf` for Task 4 hardening
   - `e52b3a5` for Task 5 implementation
+  - `c65b4fa` for Task 6
+  - `75ebb9a` for Task 7
+  - `8ff962e` for Task 8 review fix
+  - `d467e13` for Task 9
+  - `2ce9e5a` for Task 10
+  - `db5947d` for Task 11
+  - `5180b90` for Task 12
+  - `795ba0f` for Task 13
+  - `9602959` for Task 14
+  - `075eef7` for Task 15
 - current working state:
-  - Task 13 files are modified in the worktree and ready to commit
+  - Task 16 README is ready to commit
 - next task:
-  - development log refresh and README work
+  - finish the development branch or open a follow-up plan for post-plan hardening
