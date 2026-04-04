@@ -26,6 +26,7 @@ Evaluate requirement documents as evidence, not as intent. The model is the revi
    If a dimension is not clearly addressed, score it as missing or weak instead of assuming intent.
    If a dimension is genuinely not applicable, say why. Do not silently award full credit.
    Do not delegate the final score to a deterministic script.
+   Follow the detailed review procedure in [references/model-review-workflow.md](references/model-review-workflow.md) when you need a repeatable scoring flow.
 
 4. Produce a Chinese report.
    Follow [references/report-template.md](references/report-template.md).
@@ -50,6 +51,8 @@ Apply these rules:
 - Add missing dimensions only when needed to reflect strong requirement-writing standards.
 - Separate evidence, judgment, and recommendation in the write-up.
 - Flag vague statements such as "support", "complete", "reasonable", "etc." when they are not backed by parameters, conditions, or acceptance criteria.
+- Prefer quoting or paraphrasing concrete field evidence over broad subjective summaries.
+- When implementation and testing readiness conflict with OR completeness, explain the tradeoff explicitly instead of hiding it in the score.
 
 ## Local Script
 
@@ -75,3 +78,4 @@ Behavior:
 - Keep this skill body concise. Put detailed criteria in references.
 - If the user asks for only a review and no file changes, you may run the script to prepare the packet and then perform the final evaluation in the model response.
 - Treat the script output as context assembly, not as the verdict.
+- If the input is large, summarize repetitive low-signal rows and spend more space on the highest-risk or highest-value requirements.
