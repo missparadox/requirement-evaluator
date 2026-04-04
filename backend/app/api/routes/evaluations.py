@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 
+from app.clients.model_client import build_model_client
 from app.core.config import get_settings
 from app.models.evaluation import EvaluationDetail
+from app.runners.evaluation_runner import EvaluationRunner
 from app.services.evaluation_service import CreateEvaluationResult, EvaluationService
 from app.storage.evaluation_store import EvaluationStore
 
@@ -9,20 +11,36 @@ from app.storage.evaluation_store import EvaluationStore
 router = APIRouter(prefix="/api/evaluations", tags=["evaluations"])
 
 
+def get_store() -> EvaluationStore:
+    return EvaluationStore(get_settings().data_dir / "evaluations")
+
+
 def get_service() -> EvaluationService:
-    store = EvaluationStore(get_settings().data_dir / "evaluations")
-    return EvaluationService(store)
+    return EvaluationService(get_store())
+
+
+def get_runner() -> EvaluationRunner:
+    settings = get_settings()
+    return EvaluationRunner(
+        store=get_store(),
+        model_client=build_model_client(settings.model_name),
+    )
 
 
 @router.post("")
 async def create_evaluation(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     service: EvaluationService = Depends(get_service),
+    runner: EvaluationRunner = Depends(get_runner),
 ) -> CreateEvaluationResult:
     payload = await file.read()
     if not payload:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
-    return service.create_or_reuse(filename=file.filename or "upload.bin", file_bytes=payload)
+    result = service.create_or_reuse(filename=file.filename or "upload.bin", file_bytes=payload)
+    if not result.dedupe_hit:
+        background_tasks.add_task(runner.run, result.evaluation_id)
+    return result
 
 
 @router.get("/{evaluation_id}")

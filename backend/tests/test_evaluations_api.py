@@ -22,6 +22,7 @@ def test_post_evaluations_returns_pending_task(tmp_path, monkeypatch) -> None:
 
 def test_get_evaluation_returns_detail(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("REQUIREMENTS_EVALUATOR_DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     client = TestClient(create_app())
     create = client.post(
         "/api/evaluations",
@@ -37,6 +38,8 @@ def test_get_evaluation_returns_detail(tmp_path, monkeypatch) -> None:
     detail = client.get(f"/api/evaluations/{evaluation_id}")
     assert detail.status_code == 200
     assert detail.json()["evaluation_id"] == evaluation_id
+    assert detail.json()["status"] == "succeeded"
+    assert detail.json()["report_markdown"].startswith("# Mock Report")
 
 
 def test_get_evaluation_returns_404_for_missing_id(tmp_path, monkeypatch) -> None:
