@@ -7,7 +7,7 @@ description: Evaluate requirement or design documents stored in CSV, Excel, or J
 
 Evaluate requirement documents as evidence, not as intent. The model is the reviewer. Local scripts may normalize the input, but they must not replace model judgment.
 
-This skill is self-contained. `requirements.csv` and `dimensions.txt` were used to derive the default evaluation framework, but future reviews must not depend on those files being present.
+This skill is self-contained. The default evaluation framework is fully defined in this file and should be used directly in future reviews.
 
 ## Workflow
 
@@ -19,7 +19,6 @@ This skill is self-contained. `requirements.csv` and `dimensions.txt` were used 
 2. Build the rubric before scoring.
    Start with the default rubric defined in this file.
    If the input headers clearly provide additional useful fields, incorporate them as evidence, not as new mandatory dimensions by default.
-   If the user supplies a custom dimensions file, treat it as an override or supplement, but do not require it.
    Bias judgment toward implementation readiness and test readiness, while still checking OR quality and business clarity.
    If a user explicitly asks for outside references or local evidence is insufficient, browse authoritative sources. Otherwise prefer local evidence.
 
@@ -96,8 +95,7 @@ Dimension intent:
 
 Apply these rules:
 - Prefer weighted scoring out of 100.
-- Default to the rubric above even when no dimensions file exists.
-- Keep user-supplied dimensions only when they are coherent and materially useful.
+- Always start from the rubric above.
 - Add missing dimensions only when needed to reflect strong requirement-writing standards.
 - Separate evidence, judgment, and recommendation in the write-up.
 - Flag vague statements such as "support", "complete", "reasonable", "etc." when they are not backed by parameters, conditions, or acceptance criteria.
@@ -152,16 +150,6 @@ Behavior:
 - handles repeated column names by keeping ordered occurrences
 - writes a review packet for the model
 - does not generate the final scores or the final report on its own
-- does not require a dimensions file
-
-Optional:
-
-```bash
-python3 scripts/evaluate_requirements.py \
-  --input /path/to/requirements.csv \
-  --dimensions /path/to/custom-dimensions.txt \
-  --output /path/to/review-packet.md
-```
 
 ## Recommended Invocation
 
