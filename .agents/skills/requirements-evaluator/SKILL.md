@@ -7,6 +7,8 @@ description: Evaluate requirement or design documents stored in CSV, Excel, or J
 
 Evaluate requirement documents as evidence, not as intent. The model is the reviewer. Local scripts may normalize the input, but they must not replace model judgment.
 
+This skill is self-contained. `requirements.csv` and `dimensions.txt` were used to derive the default evaluation framework, but future reviews must not depend on those files being present.
+
 ## Workflow
 
 1. Inspect the input format.
@@ -15,13 +17,15 @@ Evaluate requirement documents as evidence, not as intent. The model is the revi
    Preserve the original field names and note repeated headers instead of silently dropping them.
 
 2. Build the rubric before scoring.
-   Start with any user-provided dimension file such as `dimensions.txt`.
-   Then inspect the input headers to infer what the author expects to provide, such as scenario, customer problem, value, parameter specification, test points, security constraints, assumptions, and verification method.
-   Then supplement with strong design standards drawn from superpowers-style requirement writing: clear scope, low ambiguity, internal consistency, explicit constraints, error handling, and testability.
+   Start with the default rubric defined in this file.
+   If the input headers clearly provide additional useful fields, incorporate them as evidence, not as new mandatory dimensions by default.
+   If the user supplies a custom dimensions file, treat it as an override or supplement, but do not require it.
+   Bias judgment toward implementation readiness and test readiness, while still checking OR quality and business clarity.
    If a user explicitly asks for outside references or local evidence is insufficient, browse authoritative sources. Otherwise prefer local evidence.
 
 3. Review each requirement row with the model.
-   Use the rubric in [references/rubric.md](references/rubric.md).
+   Use the rubric in this file as the primary standard.
+   Use [references/rubric.md](references/rubric.md) only as a longer companion reference when needed.
    Base every score on explicit evidence in the row.
    If a dimension is not clearly addressed, score it as missing or weak instead of assuming intent.
    If a dimension is genuinely not applicable, say why. Do not silently award full credit.
@@ -40,19 +44,96 @@ Evaluate requirement documents as evidence, not as intent. The model is the revi
 
 ## Scoring Rules
 
-Read [references/rubric.md](references/rubric.md) when:
-- the user supplies a custom dimensions file
-- the input has OR/DR/DS/TDR/TDS style staged requirements
-- you need to justify why a requirement is weak or not implementation-ready
+### Default 100-Point Rubric
+
+Default weight profile:
+
+- `OR-用户语言描述`: 6
+- `OR-应用场景`: 6
+- `OR-用户价值`: 4
+- `OR-约束和限制`: 4
+- `DR-安全分析`: 8
+- `DR-技术描述`: 14
+- `DR-可测试性`: 14
+- `DR-无歧义性`: 8
+- `DR-性能需求`: 4
+- `DR-硬件分析`: 2
+- `跨层-范围与边界`: 10
+- `跨层-假设与依赖`: 8
+- `跨层-一致性与可追踪`: 4
+- `跨层-异常处理与边界条件`: 10
+
+Dimension intent:
+
+- `OR-用户语言描述`
+  Check whether the requirement is understandable in user or business language rather than only implementation language.
+- `OR-应用场景`
+  Check whether usage context, trigger condition, and operating environment are explicit.
+- `OR-用户价值`
+  Check whether the user problem and expected value are explicit.
+- `OR-约束和限制`
+  Check whether deployment, compliance, compatibility, or operational limits are explicit.
+- `DR-安全分析`
+  Check whether security constraints, red lines, authentication, authorization, audit, encryption, or safety boundaries are explicit.
+- `DR-技术描述`
+  Check whether the technical behavior is concrete, complete, and operationally meaningful.
+- `DR-可测试性`
+  Check whether test cases or verification steps can be derived directly.
+- `DR-无歧义性`
+  Check whether parameters, states, and expected behavior are precise rather than vague.
+- `DR-性能需求`
+  Check whether relevant performance expectations are stated.
+- `DR-硬件分析`
+  Check whether hardware or resource assumptions are stated when relevant.
+- `跨层-范围与边界`
+  Check whether the requirement defines inclusions, exclusions, and main behavior boundaries.
+- `跨层-假设与依赖`
+  Check whether assumptions, dependencies, upstream inputs, or external conditions are visible.
+- `跨层-一致性与可追踪`
+  Check whether OR, DR, DS, TDR, and TDS align and trace cleanly.
+- `跨层-异常处理与边界条件`
+  Check whether invalid input, failures, rollback, timeout, conflict, logging, or edge conditions are covered.
 
 Apply these rules:
 - Prefer weighted scoring out of 100.
-- Keep user-supplied dimensions whenever they are coherent.
+- Default to the rubric above even when no dimensions file exists.
+- Keep user-supplied dimensions only when they are coherent and materially useful.
 - Add missing dimensions only when needed to reflect strong requirement-writing standards.
 - Separate evidence, judgment, and recommendation in the write-up.
 - Flag vague statements such as "support", "complete", "reasonable", "etc." when they are not backed by parameters, conditions, or acceptance criteria.
 - Prefer quoting or paraphrasing concrete field evidence over broad subjective summaries.
 - When implementation and testing readiness conflict with OR completeness, explain the tradeoff explicitly instead of hiding it in the score.
+- Mark clearly non-applicable dimensions as `N/A` and exclude them from the denominator instead of scoring them as missing.
+
+Evidence tiering:
+
+- `Excellent`: 90% to 100% of the dimension weight
+- `Good`: 70% to 89%
+- `Fair`: 40% to 69%
+- `Poor`: 10% to 39%
+- `Missing`: 0%
+
+Common negative signals:
+
+- slogan-like statements with no conditions or scope
+- broad "支持" wording without behavior detail
+- "etc." or "相关" or "完整" without enumeration
+- no scenario but detailed technical action
+- no user value but heavy technical wording
+- no test points or verification method
+- no edge cases, invalid input handling, or failure behavior
+- references to standards without mapping requirement-to-standard behavior
+
+Common positive signals:
+
+- explicit actor, trigger, and scenario
+- user problem and business value are stated
+- parameters, allowed ranges, units, defaults, and requiredness are explicit
+- normal flow and exceptional flow are both stated
+- acceptance criteria or test points are directly derivable
+- security, logging, compliance, and audit expectations are written down
+- assumptions and dependencies are explicit
+- OR and DR content reinforce rather than contradict each other
 
 ## Local Script
 
@@ -61,7 +142,6 @@ Use the bundled script when possible:
 ```bash
 python3 scripts/evaluate_requirements.py \
   --input /path/to/requirements.csv \
-  --dimensions /path/to/dimensions.txt \
   --output /path/to/review-packet.md
 ```
 
@@ -72,6 +152,16 @@ Behavior:
 - handles repeated column names by keeping ordered occurrences
 - writes a review packet for the model
 - does not generate the final scores or the final report on its own
+- does not require a dimensions file
+
+Optional:
+
+```bash
+python3 scripts/evaluate_requirements.py \
+  --input /path/to/requirements.csv \
+  --dimensions /path/to/custom-dimensions.txt \
+  --output /path/to/review-packet.md
+```
 
 ## Recommended Invocation
 
