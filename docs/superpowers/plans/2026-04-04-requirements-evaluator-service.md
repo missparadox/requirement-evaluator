@@ -834,26 +834,33 @@ git commit -m "feat: add evaluation api endpoints"
 
 **Files:**
 - Modify: `backend/app/clients/model_client.py`
+- Modify: `backend/pyproject.toml`
 - Modify: `backend/app/core/config.py`
 - Modify: `backend/tests/test_evaluation_service.py`
 
-- [ ] **Step 1: Write the failing configuration test**
+- [ ] **Step 1: Write the failing configurable client tests**
 
 ```python
-import os
-
-from app.core.config import get_settings
+from app.clients.model_client import OpenAIModelClient, StaticModelClient, build_model_client
 
 
-def test_settings_reads_model_name_from_env(monkeypatch) -> None:
-    monkeypatch.setenv("REQUIREMENTS_EVALUATOR_MODEL", "gpt-5.4")
-    assert get_settings().model_name == "gpt-5.4"
+def test_build_model_client_returns_static_client_without_api_key(monkeypatch) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    client = build_model_client("gpt-5.4")
+    assert isinstance(client, StaticModelClient)
+
+
+def test_build_model_client_returns_openai_client_with_api_key(monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    client = build_model_client("gpt-5.4")
+    assert isinstance(client, OpenAIModelClient)
+    assert client.model_name == "gpt-5.4"
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `cd backend && python3 -m pytest tests/test_evaluation_service.py -q`
-Expected: FAIL because the real client integration path is not represented yet.
+Expected: FAIL because the configurable real client path does not exist yet.
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -888,6 +895,18 @@ def build_model_client(model_name: str):
     return StaticModelClient()
 ```
 
+```toml
+dependencies = [
+  "fastapi>=0.115.0,<1.0.0",
+  "httpx>=0.28.0,<1.0.0",
+  "uvicorn>=0.30.0,<1.0.0",
+  "python-multipart>=0.0.9,<1.0.0",
+  "pydantic>=2.8.0,<3.0.0",
+  "pytest>=8.0.0,<9.0.0",
+  "openai>=1.0.0,<2.0.0",
+]
+```
+
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `cd backend && python3 -m pytest tests/test_evaluation_service.py -q`
@@ -920,17 +939,12 @@ git commit -m "feat: add configurable model client"
 
 ```tsx
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
 
 import App from "../App";
 
 
 test("renders upload route shell", () => {
-  render(
-    <MemoryRouter initialEntries={["/"]}>
-      <App />
-    </MemoryRouter>,
-  );
+  render(<App />);
   expect(screen.getByText(/requirements evaluator/i)).toBeInTheDocument();
 });
 ```
@@ -1214,7 +1228,7 @@ git commit -m "chore: ignore runtime artifacts"
 **Files:**
 - Modify: `docs/requirements-evaluator-dev-notes.md`
 
-- [ ] **Step 1: Write the new progress section content**
+- [ ] **Step 1: Write the refreshed progress summary content**
 
 ```md
 ## Service Development Progress
@@ -1235,12 +1249,12 @@ Next recommended steps:
 - consider SQLite metadata upgrade after phase 1 is stable
 ```
 
-- [ ] **Step 2: Verify the section is not already present**
+- [ ] **Step 2: Verify the section already exists and identify the anchor**
 
-Run: `rg -n "^## Service Development Progress$" docs/requirements-evaluator-dev-notes.md`
-Expected: no matches
+Run: `rg -n "^## Service Development Progress$|^### Next recommended steps$" docs/requirements-evaluator-dev-notes.md`
+Expected: matches for the existing progress section and the next-steps anchor.
 
-- [ ] **Step 3: Add the progress section**
+- [ ] **Step 3: Refresh the progress section**
 
 ```md
 ## Service Development Progress
@@ -1263,8 +1277,8 @@ Next recommended steps:
 
 - [ ] **Step 4: Run verification**
 
-Run: `rg -n "^## Service Development Progress$" docs/requirements-evaluator-dev-notes.md`
-Expected: one match
+Run: `rg -n "^## Service Development Progress$|^### Next recommended steps$" docs/requirements-evaluator-dev-notes.md`
+Expected: one match for each header, with refreshed content beneath the progress section.
 
 - [ ] **Step 5: Commit**
 
