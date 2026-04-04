@@ -21,22 +21,11 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
     def setUp(self):
         self.module = load_module()
 
-    def test_build_dimensions_prefers_user_overrides_for_packet_context(self):
-        with tempfile.NamedTemporaryFile("w+", encoding="utf-8", delete=False) as handle:
-            handle.write(
-                '"dr_technical": {\n'
-                '  "name": "DR-技术描述",\n'
-                '  "weight": 99,\n'
-                '  "description": "custom description"\n'
-                '}\n'
-            )
-            handle.flush()
-            dimensions = self.module.build_dimensions(Path(handle.name))
-
+    def test_build_dimensions_returns_default_rubric(self):
+        dimensions = self.module.build_dimensions()
         by_key = {item["key"]: item for item in dimensions}
-
-        self.assertEqual(by_key["dr_technical"]["weight"], 99)
-        self.assertEqual(by_key["dr_technical"]["description"], "custom description")
+        self.assertEqual(by_key["dr_technical"]["weight"], 8)
+        self.assertEqual(by_key["or_scenario"]["name"], "OR-应用场景")
 
     def test_build_review_packet_keeps_rows_and_core_fields(self):
         record = self.module.RowRecord(
@@ -56,7 +45,6 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
             input_path=Path("requirements.csv"),
             dimensions=self.module.DEFAULT_DIMENSIONS,
             records=[record],
-            dimensions_path=Path("dimensions.txt"),
         )
 
         self.assertEqual(packet["item_count"], 1)
@@ -82,7 +70,6 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
             input_path=Path("sample.csv"),
             dimensions=self.module.DEFAULT_DIMENSIONS,
             records=[record],
-            dimensions_path=None,
         )
         dim_view = packet["items"][0]["dimension_view"]
 
@@ -94,7 +81,6 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
     def test_rendered_markdown_is_a_review_packet_not_a_scored_report(self):
         packet = {
             "input_path": "requirements.csv",
-            "dimensions_path": "dimensions.txt",
             "item_count": 1,
             "dimension_count": 1,
             "dimensions": [{"key": "dr_technical", "name": "DR-技术描述", "weight": 10, "description": "desc"}],

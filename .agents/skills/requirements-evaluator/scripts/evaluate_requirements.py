@@ -158,37 +158,8 @@ def clean_text(value: str) -> str:
     return re.sub(r"\s+", " ", (value or "").strip())
 
 
-def parse_dimensions_file(path: Path | None) -> Dict[str, Dict[str, object]]:
-    if not path or not path.exists():
-        return {}
-    text = path.read_text(encoding="utf-8")
-    pattern = re.compile(r'"(?P<key>[^"]+)"\s*:\s*\{(?P<body>.*?)\}', re.S)
-    parsed = {}
-    for match in pattern.finditer(text):
-        key = match.group("key")
-        body = match.group("body")
-        item = {"key": key}
-        for field in ("name", "name_en", "description"):
-            found = re.search(rf'"{field}"\s*:\s*"([^"]+)"', body)
-            if found:
-                item[field] = found.group(1)
-        weight_match = re.search(r'"weight"\s*:\s*(\d+)', body)
-        if weight_match:
-            item["weight"] = int(weight_match.group(1))
-        parsed[key] = item
-    return parsed
-
-
-def build_dimensions(path: Path | None) -> List[Dict[str, object]]:
-    custom = parse_dimensions_file(path)
-    by_key = {item["key"]: dict(item) for item in DEFAULT_DIMENSIONS}
-    for key, item in custom.items():
-        merged = dict(by_key.get(key, {"key": key}))
-        merged.update(item)
-        by_key[key] = merged
-    ordered = [item["key"] for item in DEFAULT_DIMENSIONS]
-    extras = [key for key in by_key if key not in ordered]
-    return [by_key[key] for key in ordered + extras]
+def build_dimensions() -> List[Dict[str, object]]:
+    return [dict(item) for item in DEFAULT_DIMENSIONS]
 
 
 def read_csv(path: Path) -> List[RowRecord]:
@@ -306,7 +277,6 @@ def build_review_packet(
     input_path: Path,
     dimensions: List[Dict[str, object]],
     records: Sequence[RowRecord],
-    dimensions_path: Path | None = None,
 ) -> Dict[str, object]:
     items = []
     for record in records:
@@ -333,7 +303,6 @@ def build_review_packet(
 
     return {
         "input_path": str(input_path),
-        "dimensions_path": str(dimensions_path) if dimensions_path else "",
         "item_count": len(items),
         "dimension_count": len(dimensions),
         "dimensions": dimensions,
@@ -351,8 +320,6 @@ def render_review_packet_markdown(packet: Dict[str, object]) -> str:
     lines.append("## 数据概览")
     lines.append("")
     lines.append(f"- 输入文件: `{packet['input_path']}`")
-    if packet.get("dimensions_path"):
-        lines.append(f"- 维度文件: `{packet['dimensions_path']}`")
     lines.append(f"- 条目数: {packet['item_count']}")
     lines.append(f"- 维度数: {packet['dimension_count']}")
     lines.append("")
@@ -397,18 +364,16 @@ def render_review_packet_markdown(packet: Dict[str, object]) -> str:
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Build a review packet for LLM-based requirement evaluation.")
     parser.add_argument("--input", required=True, help="Path to the input CSV/Excel/JSON file.")
-    parser.add_argument("--dimensions", help="Optional path to a dimensions file.")
     parser.add_argument("--output", required=True, help="Path to write the review packet.")
     parser.add_argument("--format", choices=("markdown", "json"), default="markdown", help="Output packet format.")
     args = parser.parse_args(argv)
 
     input_path = Path(args.input).expanduser().resolve()
-    dimensions_path = Path(args.dimensions).expanduser().resolve() if args.dimensions else None
     output_path = Path(args.output).expanduser().resolve()
 
-    dimensions = build_dimensions(dimensions_path)
+    dimensions = build_dimensions()
     records = read_records(input_path)
-    packet = build_review_packet(input_path, dimensions, records, dimensions_path)
+    packet = build_review_packet(input_path, dimensions, records)
 
     if args.format == "json":
         output_path.write_text(json.dumps(packet, ensure_ascii=False, indent=2), encoding="utf-8")
