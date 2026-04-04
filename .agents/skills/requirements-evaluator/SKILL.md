@@ -73,6 +73,17 @@ Behavior:
 - writes a review packet for the model
 - does not generate the final scores or the final report on its own
 
+## Recommended Invocation
+
+If the input is tabular, generate a review packet first, then ask the model to perform the final review.
+Use [references/recommended-prompt.md](references/recommended-prompt.md) as the starting prompt pattern.
+
+Preferred flow:
+
+1. Run the script to build a review packet.
+2. Load the packet, rubric, and report template.
+3. Ask the model to produce the final Chinese evaluation report.
+
 ## Notes
 
 - Keep this skill body concise. Put detailed criteria in references.
