@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from unittest.mock import Mock
 
-from app.clients.model_client import StaticModelClient
+from app.clients.model_client import OpenAIModelClient, StaticModelClient, build_model_client
 from app.runners.evaluation_runner import EvaluationRunner
 from app.services.evaluation_service import EvaluationService
 from app.storage.evaluation_store import EvaluationStore
@@ -12,6 +12,19 @@ def test_static_model_client_returns_markdown() -> None:
     client = StaticModelClient()
     report = client.generate_report(skill_text="skill", template_text="template", packet_text="packet")
     assert report.startswith("#")
+
+
+def test_build_model_client_returns_static_client_without_api_key(monkeypatch) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    client = build_model_client("gpt-5.4")
+    assert isinstance(client, StaticModelClient)
+
+
+def test_build_model_client_returns_openai_client_with_api_key(monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    client = build_model_client("gpt-5.4")
+    assert isinstance(client, OpenAIModelClient)
+    assert client.model_name == "gpt-5.4"
 
 
 def test_create_returns_new_evaluation_id_when_no_match(tmp_path: Path) -> None:

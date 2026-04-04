@@ -364,6 +364,20 @@ Related commits on the feature branch:
     - `backend/app/main.py`
     - `backend/app/services/evaluation_service.py`
     - `backend/tests/test_evaluations_api.py`
+- Task 10 is complete:
+  - model client now supports a configurable OpenAI-backed implementation plus static fallback selection
+  - Task 10 plan note:
+    - `get_settings().model_name` was already implemented before this task, so the Task 10 red step was corrected to cover configurable client selection instead of repeating an existing config behavior
+    - backend dependency metadata now includes `openai`
+  - spec compliance review result:
+    - approved
+  - code quality review result:
+    - approved
+  - completed files:
+    - `backend/app/clients/model_client.py`
+    - `backend/pyproject.toml`
+    - `backend/tests/test_evaluation_service.py`
+    - `docs/superpowers/plans/2026-04-04-requirements-evaluator-service.md`
 
 ### Known implementation notes
 
@@ -377,7 +391,7 @@ Related commits on the feature branch:
 
 ### Next recommended steps
 
-After Task 9, continue in this order:
+After Task 10, continue in this order:
 
 - frontend scaffold
 - upload flow
@@ -401,12 +415,13 @@ Use this section as the short resume point for future sessions:
   - Task 7
   - Task 8
   - Task 9
+  - Task 10
 - latest task-completion commits:
   - `8feecf6` for Task 2 hardening
   - `a867a50` for Task 3 hardening
   - `304ffdf` for Task 4 hardening
   - `e52b3a5` for Task 5 implementation
 - current working state:
-  - Task 9 files are modified in the worktree and ready to commit
+  - Task 10 files are modified in the worktree and ready to commit
 - next task:
-  - Task 10 configurable model client
+  - Task 11 frontend scaffold and routing
