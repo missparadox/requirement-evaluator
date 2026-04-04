@@ -111,6 +111,19 @@ Polling stops when the page reaches:
 
 No shorter cadence should be used unless the interaction design is revisited.
 
+### Polling Update Scope
+
+When a polling response returns a new task state, all state-dependent areas on the page must update together.
+
+This includes at least:
+
+- the `任务信息` section status card
+- the `评估结论` section waiting card, success content, or failure card
+- report download action visibility
+- success-state layered reveal trigger
+
+The page must not update only the conclusion area while leaving the task-information status stale.
+
 ## Succeeded State
 
 ### General Rule
