@@ -1228,7 +1228,7 @@ git commit -m "chore: ignore runtime artifacts"
 **Files:**
 - Modify: `docs/requirements-evaluator-dev-notes.md`
 
-- [ ] **Step 1: Write the new progress section content**
+- [ ] **Step 1: Write the refreshed progress summary content**
 
 ```md
 ## Service Development Progress
@@ -1249,12 +1249,12 @@ Next recommended steps:
 - consider SQLite metadata upgrade after phase 1 is stable
 ```
 
-- [ ] **Step 2: Verify the section is not already present**
+- [ ] **Step 2: Verify the section already exists and identify the anchor**
 
-Run: `rg -n "^## Service Development Progress$" docs/requirements-evaluator-dev-notes.md`
-Expected: no matches
+Run: `rg -n "^## Service Development Progress$|^### Next recommended steps$" docs/requirements-evaluator-dev-notes.md`
+Expected: matches for the existing progress section and the next-steps anchor.
 
-- [ ] **Step 3: Add the progress section**
+- [ ] **Step 3: Refresh the progress section**
 
 ```md
 ## Service Development Progress
@@ -1277,8 +1277,8 @@ Next recommended steps:
 
 - [ ] **Step 4: Run verification**
 
-Run: `rg -n "^## Service Development Progress$" docs/requirements-evaluator-dev-notes.md`
-Expected: one match
+Run: `rg -n "^## Service Development Progress$|^### Next recommended steps$" docs/requirements-evaluator-dev-notes.md`
+Expected: one match for each header, with refreshed content beneath the progress section.
 
 - [ ] **Step 5: Commit**
 

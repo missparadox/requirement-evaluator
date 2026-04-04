@@ -210,6 +210,25 @@ These boundaries should hold unless there is a strong reason to change them:
 
 ## Service Development Progress
 
+Current implementation phase:
+
+- frontend-backend separated service scaffold is complete
+- FastAPI backend flow is wired through upload, dedupe, runner, and detail APIs
+- React/Vite frontend now has upload and detail page shells in place
+
+Completed decisions:
+
+- local filesystem artifact storage remains the phase 1 source of truth
+- dedupe is based on input content plus version material
+- SQLite remains deferred for future metadata-only work
+- the static model client remains the safe fallback when production credentials are unavailable
+
+Next recommended steps:
+
+- replace the placeholder frontend data flow with real create/poll/report wiring
+- tighten production model credential validation and prompt-shaping behavior
+- add README guidance for service mode and standalone skill mode
+
 ### Current branch and workflow
 
 - active implementation branch: `feature/requirements-evaluator-service`
