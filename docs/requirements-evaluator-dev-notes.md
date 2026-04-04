@@ -335,6 +335,11 @@ Related commits on the feature branch:
   - completed files:
     - `backend/app/storage/evaluation_store.py`
     - `backend/tests/test_evaluation_store.py`
+- Task 8 is complete:
+  - background runner now updates task status, builds a review packet, generates a mock report, and persists the final report path
+  - completed files:
+    - `backend/app/runners/evaluation_runner.py`
+    - `backend/tests/test_evaluation_service.py`
 
 ### Known implementation notes
 
@@ -348,9 +353,8 @@ Related commits on the feature branch:
 
 ### Next recommended steps
 
-After Task 7, continue in this order:
+After Task 8, continue in this order:
 
-- runner
 - API endpoints
 - frontend scaffold
 - upload flow
@@ -372,12 +376,13 @@ Use this section as the short resume point for future sessions:
   - Task 5
   - Task 6
   - Task 7
+  - Task 8
 - latest task-completion commits:
   - `8feecf6` for Task 2 hardening
   - `a867a50` for Task 3 hardening
   - `304ffdf` for Task 4 hardening
   - `e52b3a5` for Task 5 implementation
 - current working state:
-  - Task 7 files are modified in the worktree and ready to commit
+  - Task 8 files are modified in the worktree and ready to commit
 - next task:
-  - Task 8 evaluation runner
+  - Task 9 evaluation API endpoints

@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from app.clients.model_client import StaticModelClient
+from app.runners.evaluation_runner import EvaluationRunner
 from app.services.evaluation_service import EvaluationService
 from app.storage.evaluation_store import EvaluationStore
 
@@ -39,3 +40,16 @@ def test_create_makes_new_evaluation_when_matching_task_failed(tmp_path: Path) -
 
     assert second.evaluation_id != first.evaluation_id
     assert second.dedupe_hit is False
+
+
+def test_runner_writes_report_and_marks_success(tmp_path: Path) -> None:
+    store = EvaluationStore(tmp_path)
+    store.create_evaluation(
+        evaluation_id="eval_001",
+        filename="requirements.csv",
+        file_bytes="OR需求编号,OR需求名称*,OR需求描述*\nD1,N,D\n".encode("utf-8"),
+    )
+    runner = EvaluationRunner(store=store, model_client=StaticModelClient())
+    runner.run("eval_001")
+    metadata = store.read_metadata("eval_001")
+    assert metadata["status"] == "succeeded"
