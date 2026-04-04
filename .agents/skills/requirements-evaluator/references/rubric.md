@@ -1,6 +1,7 @@
 # Requirements Evaluation Rubric
 
 Use this rubric to evaluate whether a requirement document meets strong design standards.
+The model should apply this rubric directly. A local script may prepare evidence, but it should not replace the model's final scoring judgment.
 
 ## Dimension Sources
 

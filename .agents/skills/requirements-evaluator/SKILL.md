@@ -1,11 +1,11 @@
 ---
 name: requirements-evaluator
-description: Evaluate requirement or design documents stored in CSV, Excel, or JSON files and produce a structured Chinese quality report with per-item scores, red flags, missing information, and prioritized revision advice. Use when Codex needs to review one or many requirement rows, score them against strong design standards, reconcile user-provided dimensions with file headers, or judge whether the documents are ready for detailed design, implementation, or testing.
+description: Evaluate requirement or design documents stored in CSV, Excel, or JSON files by having the model review the document content directly against a structured rubric and then produce a Chinese quality report with per-item scores, red flags, missing information, and prioritized revision advice. Use when Codex needs to review one or many requirement rows, reconcile user-provided dimensions with file headers, judge whether the documents are ready for implementation or testing, or prepare a model-driven review packet from tabular requirement data.
 ---
 
 # Requirements Evaluator
 
-Evaluate requirement documents as evidence, not as intent. Score only what the file actually states.
+Evaluate requirement documents as evidence, not as intent. The model is the reviewer. Local scripts may normalize the input, but they must not replace model judgment.
 
 ## Workflow
 
@@ -20,11 +20,12 @@ Evaluate requirement documents as evidence, not as intent. Score only what the f
    Then supplement with strong design standards drawn from superpowers-style requirement writing: clear scope, low ambiguity, internal consistency, explicit constraints, error handling, and testability.
    If a user explicitly asks for outside references or local evidence is insufficient, browse authoritative sources. Otherwise prefer local evidence.
 
-3. Score each requirement row.
+3. Review each requirement row with the model.
    Use the rubric in [references/rubric.md](references/rubric.md).
    Base every score on explicit evidence in the row.
    If a dimension is not clearly addressed, score it as missing or weak instead of assuming intent.
    If a dimension is genuinely not applicable, say why. Do not silently award full credit.
+   Do not delegate the final score to a deterministic script.
 
 4. Produce a Chinese report.
    Follow [references/report-template.md](references/report-template.md).
@@ -58,7 +59,7 @@ Use the bundled script when possible:
 python3 scripts/evaluate_requirements.py \
   --input /path/to/requirements.csv \
   --dimensions /path/to/dimensions.txt \
-  --output /path/to/report.md
+  --output /path/to/review-packet.md
 ```
 
 Behavior:
@@ -66,10 +67,11 @@ Behavior:
 - reads Excel with `openpyxl` when available
 - reads JSON arrays or objects with a top-level list field
 - handles repeated column names by keeping ordered occurrences
-- writes a Chinese Markdown report
+- writes a review packet for the model
+- does not generate the final scores or the final report on its own
 
 ## Notes
 
 - Keep this skill body concise. Put detailed criteria in references.
-- If the user asks for only a review and no file changes, you may run the script and return the report without editing the input files.
-- If you manually review a few rows in addition to the scripted output, use that review to sharpen recommendations, not to override evidence blindly.
+- If the user asks for only a review and no file changes, you may run the script to prepare the packet and then perform the final evaluation in the model response.
+- Treat the script output as context assembly, not as the verdict.

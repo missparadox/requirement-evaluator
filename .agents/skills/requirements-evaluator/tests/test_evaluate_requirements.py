@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import sys
 import tempfile
 import unittest
@@ -16,85 +17,17 @@ def load_module():
     return module
 
 
-def make_record(module, mapping):
-    grouped = {key: [value] for key, value in mapping.items()}
-    return module.RowRecord(index=1, grouped=grouped)
-
-
-class RequirementsEvaluatorTests(unittest.TestCase):
+class RequirementsEvaluatorPacketTests(unittest.TestCase):
     def setUp(self):
         self.module = load_module()
-        self.dimensions = self.module.DEFAULT_DIMENSIONS
 
-    def test_technical_requirement_can_score_well_when_non_applicable_dimensions_are_absent(self):
-        record = make_record(
-            self.module,
-            {
-                "OR需求编号": "DOR-1",
-                "OR需求名称*": "调阅方配置",
-                "OR需求描述*": "支持配置调阅方信息。",
-                "DR需求编号": "DDR-1",
-                "DR需求名称*": "调阅方配置",
-                "DR需求描述*": (
-                    "用户通过界面添加调阅平台。正常过程包括参数校验、唯一性校验、"
-                    "调用 API 和记录日志。异常过程包括名称重复、模板无效、参数格式错误、API 调用失败。"
-                ),
-                "参数规格": "端口 1-65535，名称 1-20 字符，IP 为 IPv4 地址。",
-                "操作场景": "管理员在平台配置页面新增调阅方。",
-                "安全约束": "记录审计日志，仅管理员可配置。",
-            },
-        )
-
-        result = self.module.score_row(record, self.dimensions)
-
-        self.assertGreaterEqual(result["total"], 65)
-        self.assertIn(result["grade"], {"B", "A"})
-
-    def test_non_performance_requirement_does_not_get_performance_credit_without_explicit_target(self):
-        record = make_record(
-            self.module,
-            {
-                "OR需求编号": "DOR-2",
-                "OR需求名称*": "满足红线",
-                "OR需求描述*": "产品需满足安全红线。",
-                "DR需求编号": "DDR-2",
-                "DR需求名称*": "满足红线",
-                "DR需求描述*": "所有信息存储满足红线要求，开放端口满足业务必须原则。",
-            },
-        )
-
-        result = self.module.score_row(record, self.dimensions)
-        by_key = {item["key"]: item for item in result["scores"]}
-
-        self.assertEqual(by_key["dr_performance"]["score"], 0)
-
-    def test_missing_testability_and_exceptions_keeps_requirement_low(self):
-        record = make_record(
-            self.module,
-            {
-                "OR需求编号": "DOR-3",
-                "OR需求名称*": "DNS配置",
-                "OR需求描述*": "支持 DNS 服务器配置，包括首选和备选 DNS。",
-                "DR需求编号": "DDR-3",
-                "DR需求名称*": "DNS配置",
-                "DR需求描述*": "IP 地址必填，分段输入，范围 0-255。",
-            },
-        )
-
-        result = self.module.score_row(record, self.dimensions)
-        by_key = {item["key"]: item for item in result["scores"]}
-
-        self.assertLess(result["total"], 55)
-        self.assertLessEqual(by_key["dr_testability"]["score"], 4)
-        self.assertLessEqual(by_key["cross_exceptions"]["score"], 2)
-
-    def test_custom_dimension_file_keeps_names_but_uses_internal_weight_profile_for_known_keys(self):
+    def test_build_dimensions_prefers_user_overrides_for_packet_context(self):
         with tempfile.NamedTemporaryFile("w+", encoding="utf-8", delete=False) as handle:
             handle.write(
                 '"dr_technical": {\n'
                 '  "name": "DR-技术描述",\n'
-                '  "weight": 8,\n'
-                '  "description": "custom"\n'
+                '  "weight": 99,\n'
+                '  "description": "custom description"\n'
                 '}\n'
             )
             handle.flush()
@@ -102,8 +35,91 @@ class RequirementsEvaluatorTests(unittest.TestCase):
 
         by_key = {item["key"]: item for item in dimensions}
 
-        self.assertEqual(by_key["dr_technical"]["name"], "DR-技术描述")
-        self.assertEqual(by_key["dr_technical"]["weight"], 14)
+        self.assertEqual(by_key["dr_technical"]["weight"], 99)
+        self.assertEqual(by_key["dr_technical"]["description"], "custom description")
+
+    def test_build_review_packet_keeps_rows_and_core_fields(self):
+        record = self.module.RowRecord(
+            index=1,
+            grouped={
+                "OR需求编号": ["DOR-1"],
+                "OR需求名称*": ["DNS配置"],
+                "OR需求描述*": ["支持 DNS 服务器配置。"],
+                "DR需求编号": ["DDR-1"],
+                "DR需求描述*": ["IP 地址必填，分段输入，范围 0-255。"],
+                "参数规格": ["0-255"],
+                "系统测试要点": ["校验必填项和非法 IP"],
+            },
+        )
+
+        packet = self.module.build_review_packet(
+            input_path=Path("requirements.csv"),
+            dimensions=self.module.DEFAULT_DIMENSIONS,
+            records=[record],
+            dimensions_path=Path("dimensions.txt"),
+        )
+
+        self.assertEqual(packet["item_count"], 1)
+        self.assertEqual(packet["items"][0]["id"], "DOR-1")
+        self.assertIn("raw_fields", packet["items"][0])
+        self.assertEqual(packet["items"][0]["core_fields"]["dr_desc"], "IP 地址必填，分段输入，范围 0-255。")
+
+    def test_rendered_markdown_is_a_review_packet_not_a_scored_report(self):
+        packet = {
+            "input_path": "requirements.csv",
+            "dimensions_path": "dimensions.txt",
+            "item_count": 1,
+            "dimension_count": 1,
+            "dimensions": [{"key": "dr_technical", "name": "DR-技术描述", "weight": 10, "description": "desc"}],
+            "header_summary": ["OR需求编号", "DR需求描述*"],
+            "items": [
+                {
+                    "row_index": 1,
+                    "id": "DOR-1",
+                    "name": "DNS配置",
+                    "core_fields": {"or_desc": "支持 DNS", "dr_desc": "IP 0-255"},
+                    "raw_fields": {"OR需求编号": ["DOR-1"], "DR需求描述*": ["IP 0-255"]},
+                }
+            ],
+        }
+
+        rendered = self.module.render_review_packet_markdown(packet)
+
+        self.assertIn("# 需求评审任务包", rendered)
+        self.assertIn("## 评审维度", rendered)
+        self.assertNotIn("总分:", rendered)
+        self.assertNotIn("等级:", rendered)
+
+    def test_cli_json_output_writes_packet(self):
+        rows = [
+            {
+                "OR需求编号": "DOR-1",
+                "OR需求名称*": "DNS配置",
+                "OR需求描述*": "支持 DNS 服务器配置。",
+                "DR需求描述*": "IP 地址必填，分段输入，范围 0-255。",
+            }
+        ]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            input_path = tmp / "requirements.json"
+            output_path = tmp / "packet.json"
+            input_path.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
+
+            self.module.main(
+                [
+                    "--input",
+                    str(input_path),
+                    "--output",
+                    str(output_path),
+                    "--format",
+                    "json",
+                ]
+            )
+
+            packet = json.loads(output_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(packet["item_count"], 1)
+        self.assertEqual(packet["items"][0]["name"], "DNS配置")
 
 
 if __name__ == "__main__":
