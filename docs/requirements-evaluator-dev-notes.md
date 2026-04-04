@@ -420,6 +420,22 @@ Related commits on the feature branch:
     - `frontend/src/pages/UploadPage.tsx`
     - `frontend/src/pages/UploadPage.test.tsx`
     - `frontend/src/styles/global.css`
+- Task 13 is complete:
+  - detail page now has a status shell, report shell, route registration, and a Markdown download entrypoint
+  - Task 13 implementation note:
+    - this task only adds the detail-page shell and download hook point; real polling and runtime detail data wiring remain for later work
+  - spec compliance review result:
+    - approved
+  - code quality review result:
+    - approved
+  - completed files:
+    - `frontend/src/components/EvaluationStatusPanel.tsx`
+    - `frontend/src/components/ReportViewer.tsx`
+    - `frontend/src/lib/download.ts`
+    - `frontend/src/pages/EvaluationDetailPage.tsx`
+    - `frontend/src/pages/EvaluationDetailPage.test.tsx`
+    - `frontend/src/router/index.tsx`
+    - `frontend/src/styles/global.css`
 
 ### Known implementation notes
 
@@ -433,9 +449,8 @@ Related commits on the feature branch:
 
 ### Next recommended steps
 
-After Task 12, continue in this order:
+After Task 13, continue in this order:
 
-- detail page and Markdown download
 - development log refresh
 - README for service mode and standalone skill mode
 
@@ -458,12 +473,13 @@ Use this section as the short resume point for future sessions:
   - Task 10
   - Task 11
   - Task 12
+  - Task 13
 - latest task-completion commits:
   - `8feecf6` for Task 2 hardening
   - `a867a50` for Task 3 hardening
   - `304ffdf` for Task 4 hardening
   - `e52b3a5` for Task 5 implementation
 - current working state:
-  - Task 12 files are modified in the worktree and ready to commit
+  - Task 13 files are modified in the worktree and ready to commit
 - next task:
-  - Task 13 evaluation detail page
+  - development log refresh and README work

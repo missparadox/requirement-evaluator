@@ -104,6 +104,45 @@ select {
   font-weight: 600;
 }
 
+.detail-shell {
+  min-height: 100vh;
+  display: grid;
+  gap: 20px;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top right, rgba(36, 22, 13, 0.08), transparent 24%),
+    linear-gradient(180deg, rgba(255, 252, 246, 0.7), rgba(231, 221, 207, 0.95));
+}
+
+.detail-panel {
+  padding: 28px;
+  border: 1px solid var(--panel-border);
+  border-radius: 24px;
+  background: rgba(255, 252, 246, 0.88);
+  box-shadow: var(--shadow);
+}
+
+.detail-copy,
+.detail-status {
+  margin: 12px 0 0;
+  color: var(--muted);
+}
+
+.detail-actions {
+  display: flex;
+}
+
+.report-panel {
+  overflow: auto;
+}
+
+.report-content {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: "SFMono-Regular", "Menlo", monospace;
+  line-height: 1.6;
+}
+
 @media (max-width: 640px) {
   .upload-panel {
     padding: 32px 24px;
