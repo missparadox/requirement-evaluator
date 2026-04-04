@@ -939,17 +939,12 @@ git commit -m "feat: add configurable model client"
 
 ```tsx
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
 
 import App from "../App";
 
 
 test("renders upload route shell", () => {
-  render(
-    <MemoryRouter initialEntries={["/"]}>
-      <App />
-    </MemoryRouter>,
-  );
+  render(<App />);
   expect(screen.getByText(/requirements evaluator/i)).toBeInTheDocument();
 });
 ```

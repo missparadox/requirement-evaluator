@@ -378,6 +378,32 @@ Related commits on the feature branch:
     - `backend/pyproject.toml`
     - `backend/tests/test_evaluation_service.py`
     - `docs/superpowers/plans/2026-04-04-requirements-evaluator-service.md`
+- Task 11 is complete:
+  - frontend scaffold now exists with Vite, React, TypeScript, Vitest, route wiring, and a minimal upload shell page
+  - Task 11 plan note:
+    - the original Task 11 test wrapped `App` in `MemoryRouter` while the implementation used `RouterProvider`, which created a nested-router failure
+    - the plan and test were corrected to render `App` directly so the route smoke test matches the real app structure
+  - spec compliance review result:
+    - approved after test/plan alignment
+  - code quality review result:
+    - approved after adding `frontend/node_modules/` to `.gitignore`
+  - completed files:
+    - `.gitignore`
+    - `frontend/package.json`
+    - `frontend/tsconfig.json`
+    - `frontend/tsconfig.node.json`
+    - `frontend/vite.config.ts`
+    - `frontend/index.html`
+    - `frontend/src/App.tsx`
+    - `frontend/src/main.tsx`
+    - `frontend/src/router/index.tsx`
+    - `frontend/src/pages/UploadPage.tsx`
+    - `frontend/src/pages/UploadPage.test.tsx`
+    - `frontend/src/styles/global.css`
+    - `frontend/src/styles/theme.css`
+    - `frontend/src/test/setup.ts`
+    - `frontend/src/vite-env.d.ts`
+    - `docs/superpowers/plans/2026-04-04-requirements-evaluator-service.md`
 
 ### Known implementation notes
 
@@ -391,9 +417,8 @@ Related commits on the feature branch:
 
 ### Next recommended steps
 
-After Task 10, continue in this order:
+After Task 11, continue in this order:
 
-- frontend scaffold
 - upload flow
 - detail page and Markdown download
 - development log refresh
@@ -416,12 +441,13 @@ Use this section as the short resume point for future sessions:
   - Task 8
   - Task 9
   - Task 10
+  - Task 11
 - latest task-completion commits:
   - `8feecf6` for Task 2 hardening
   - `a867a50` for Task 3 hardening
   - `304ffdf` for Task 4 hardening
   - `e52b3a5` for Task 5 implementation
 - current working state:
-  - Task 10 files are modified in the worktree and ready to commit
+  - Task 11 files are modified in the worktree and ready to commit
 - next task:
-  - Task 11 frontend scaffold and routing
+  - Task 12 upload flow
