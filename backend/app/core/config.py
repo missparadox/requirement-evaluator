@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from pathlib import Path
 import os
 
+from app.core.paths import REPO_ROOT
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -10,7 +12,6 @@ class Settings:
 
 
 def get_settings() -> Settings:
-    repo_root = Path(__file__).resolve().parents[3]
-    data_dir = Path(os.environ.get("REQUIREMENTS_EVALUATOR_DATA_DIR", repo_root / "data"))
+    data_dir = Path(os.environ.get("REQUIREMENTS_EVALUATOR_DATA_DIR", REPO_ROOT / "data"))
     model_name = os.environ.get("REQUIREMENTS_EVALUATOR_MODEL", "gpt-5.4")
     return Settings(data_dir=data_dir, model_name=model_name)
