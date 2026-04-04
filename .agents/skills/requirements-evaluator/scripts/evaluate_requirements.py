@@ -124,6 +124,23 @@ CORE_FIELD_MAP = {
     "tds_desc": "TDS需求描述*",
 }
 
+DIMENSION_FIELD_MAP = {
+    "or_user_language": ["OR需求名称*", "OR需求描述*", "更多描述信息"],
+    "or_scenario": ["应用场景", "操作场景", "OR需求描述*", "更多描述信息"],
+    "or_user_value": ["客户问题", "价值描述", "OR需求描述*"],
+    "or_constraints": ["约束与限制", "安全约束", "集成方式", "更多描述信息"],
+    "dr_security": ["安全约束", "DR需求描述*", "TDR需求描述*"],
+    "dr_technical": ["DR需求描述*", "DS需求描述*", "TDR需求描述*", "TDS需求描述*", "集成方式", "参数规格"],
+    "dr_testability": ["系统测试要点", "验证方法描述", "参数规格", "DR需求描述*", "DS需求描述*"],
+    "dr_ambiguity": ["参数规格", "DR需求描述*", "TDR需求描述*"],
+    "dr_performance": ["DR需求描述*", "参数规格", "约束与限制", "更多描述信息"],
+    "dr_hardware": ["DR需求描述*", "参数规格", "约束与限制", "更多描述信息"],
+    "cross_scope": ["OR需求描述*", "DR需求描述*", "DS需求描述*", "TDR需求描述*", "TDS需求描述*"],
+    "cross_dependencies": ["假设和依赖信息", "集成方式", "约束与限制", "DS需求描述*", "TDS需求描述*"],
+    "cross_traceability": ["OR需求编号", "DR需求编号", "DS需求编号", "TDR需求编号", "TDS需求编号", "ORURL", "DRURL", "DSURL", "TDRURL", "TDSURL"],
+    "cross_exceptions": ["DR需求描述*", "系统测试要点", "验证方法描述", "安全约束", "更多描述信息"],
+}
+
 
 @dataclass
 class RowRecord:
@@ -263,6 +280,28 @@ def extract_core_fields(record: RowRecord) -> Dict[str, str]:
     return core
 
 
+def build_dimension_view(record: RowRecord, dimensions: Sequence[Dict[str, object]]) -> Dict[str, Dict[str, object]]:
+    view = {}
+    for dimension in dimensions:
+        key = str(dimension["key"])
+        mapped_fields = DIMENSION_FIELD_MAP.get(key, [])
+        evidence_fields = {}
+        missing_fields = []
+        for field in mapped_fields:
+            values = [clean_text(value) for value in record.grouped.get(field, []) if clean_text(value)]
+            if values:
+                evidence_fields[field] = values
+            else:
+                missing_fields.append(field)
+        view[key] = {
+            "name": dimension["name"],
+            "mapped_fields": mapped_fields,
+            "evidence_fields": evidence_fields,
+            "missing_fields": missing_fields,
+        }
+    return view
+
+
 def build_review_packet(
     input_path: Path,
     dimensions: List[Dict[str, object]],
@@ -287,6 +326,7 @@ def build_review_packet(
                 "id": requirement_id,
                 "name": requirement_name,
                 "core_fields": core_fields,
+                "dimension_view": build_dimension_view(record, dimensions),
                 "raw_fields": raw_fields,
             }
         )
@@ -337,6 +377,15 @@ def render_review_packet_markdown(packet: Dict[str, object]) -> str:
         for key, value in item["core_fields"].items():
             if value:
                 lines.append(f"- {key}: {value}")
+        lines.append("")
+        lines.append("维度视图：")
+        for key, dimension in item.get("dimension_view", {}).items():
+            lines.append(f"- {key} / {dimension['name']}")
+            if dimension["evidence_fields"]:
+                for field, values in dimension["evidence_fields"].items():
+                    lines.append(f"  - evidence {field}: {' | '.join(values)}")
+            if dimension["missing_fields"]:
+                lines.append(f"  - missing: {', '.join(dimension['missing_fields'])}")
         lines.append("")
         lines.append("原始字段：")
         for key, values in item["raw_fields"].items():

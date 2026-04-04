@@ -62,7 +62,34 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertEqual(packet["item_count"], 1)
         self.assertEqual(packet["items"][0]["id"], "DOR-1")
         self.assertIn("raw_fields", packet["items"][0])
+        self.assertIn("dimension_view", packet["items"][0])
         self.assertEqual(packet["items"][0]["core_fields"]["dr_desc"], "IP 地址必填，分段输入，范围 0-255。")
+        self.assertIn("dr_testability", packet["items"][0]["dimension_view"])
+
+    def test_dimension_view_is_based_on_rubric_relevance_not_on_non_empty_frequency(self):
+        record = self.module.RowRecord(
+            index=1,
+            grouped={
+                "OR需求编号": ["DOR-2"],
+                "OR需求名称*": ["设备接入"],
+                "OR需求描述*": ["支持设备接入。"],
+                "DR需求描述*": ["设备接入需校验参数格式。"],
+                "参数规格": ["字段长度 1-64"],
+            },
+        )
+
+        packet = self.module.build_review_packet(
+            input_path=Path("sample.csv"),
+            dimensions=self.module.DEFAULT_DIMENSIONS,
+            records=[record],
+            dimensions_path=None,
+        )
+        dim_view = packet["items"][0]["dimension_view"]
+
+        self.assertIn("dr_testability", dim_view)
+        self.assertIn("系统测试要点", dim_view["dr_testability"]["mapped_fields"])
+        self.assertIn("系统测试要点", dim_view["dr_testability"]["missing_fields"])
+        self.assertEqual(dim_view["dr_testability"]["evidence_fields"]["参数规格"], ["字段长度 1-64"])
 
     def test_rendered_markdown_is_a_review_packet_not_a_scored_report(self):
         packet = {
@@ -78,6 +105,14 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
                     "id": "DOR-1",
                     "name": "DNS配置",
                     "core_fields": {"or_desc": "支持 DNS", "dr_desc": "IP 0-255"},
+                    "dimension_view": {
+                        "dr_technical": {
+                            "name": "DR-技术描述",
+                            "mapped_fields": ["DR需求描述*", "参数规格"],
+                            "evidence_fields": {"DR需求描述*": ["IP 0-255"]},
+                            "missing_fields": ["参数规格"],
+                        }
+                    },
                     "raw_fields": {"OR需求编号": ["DOR-1"], "DR需求描述*": ["IP 0-255"]},
                 }
             ],
@@ -87,6 +122,7 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
 
         self.assertIn("# 需求评审任务包", rendered)
         self.assertIn("## 评审维度", rendered)
+        self.assertIn("维度视图", rendered)
         self.assertNotIn("总分:", rendered)
         self.assertNotIn("等级:", rendered)
 
