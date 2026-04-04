@@ -404,6 +404,22 @@ Related commits on the feature branch:
     - `frontend/src/test/setup.ts`
     - `frontend/src/vite-env.d.ts`
     - `docs/superpowers/plans/2026-04-04-requirements-evaluator-service.md`
+- Task 12 is complete:
+  - upload page now renders a file form and shows validation when submission happens without a selected file
+  - Task 12 implementation note:
+    - `frontend/src/features/evaluations/*` was scaffolded as minimal placeholders in this task so the repository layout matches the plan before the real API wiring lands
+  - spec compliance review result:
+    - approved
+  - code quality review result:
+    - approved
+  - completed files:
+    - `frontend/src/components/FileUploadForm.tsx`
+    - `frontend/src/features/evaluations/api.ts`
+    - `frontend/src/features/evaluations/types.ts`
+    - `frontend/src/features/evaluations/hooks.ts`
+    - `frontend/src/pages/UploadPage.tsx`
+    - `frontend/src/pages/UploadPage.test.tsx`
+    - `frontend/src/styles/global.css`
 
 ### Known implementation notes
 
@@ -417,9 +433,8 @@ Related commits on the feature branch:
 
 ### Next recommended steps
 
-After Task 11, continue in this order:
+After Task 12, continue in this order:
 
-- upload flow
 - detail page and Markdown download
 - development log refresh
 - README for service mode and standalone skill mode
@@ -442,12 +457,13 @@ Use this section as the short resume point for future sessions:
   - Task 9
   - Task 10
   - Task 11
+  - Task 12
 - latest task-completion commits:
   - `8feecf6` for Task 2 hardening
   - `a867a50` for Task 3 hardening
   - `304ffdf` for Task 4 hardening
   - `e52b3a5` for Task 5 implementation
 - current working state:
-  - Task 11 files are modified in the worktree and ready to commit
+  - Task 12 files are modified in the worktree and ready to commit
 - next task:
-  - Task 12 upload flow
+  - Task 13 evaluation detail page

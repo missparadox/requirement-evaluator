@@ -1,3 +1,6 @@
+import { FileUploadForm } from "../components/FileUploadForm";
+
+
 export function UploadPage() {
   return (
     <main className="upload-shell">
@@ -7,6 +10,7 @@ export function UploadPage() {
         <p className="intro">
           Upload a requirements file to start an evaluation run and follow the result from the detail page.
         </p>
+        <FileUploadForm />
       </section>
     </main>
   );
