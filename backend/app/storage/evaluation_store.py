@@ -17,13 +17,14 @@ class EvaluationStore:
     def create_evaluation(self, *, evaluation_id: str, filename: str, file_bytes: bytes) -> dict[str, Any]:
         directory = self.evaluation_dir(evaluation_id)
         directory.mkdir(parents=True, exist_ok=False)
-        original_file_path = directory / filename
+        safe_filename = Path(filename).name
+        original_file_path = directory / safe_filename
         original_file_path.write_bytes(file_bytes)
         metadata_path = directory / "metadata.json"
         metadata = {
             "evaluation_id": evaluation_id,
             "status": "pending",
-            "filename": filename,
+            "filename": safe_filename,
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
         metadata_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
