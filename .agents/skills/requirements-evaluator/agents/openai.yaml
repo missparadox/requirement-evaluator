@@ -1,0 +1,4 @@
+interface:
+  display_name: "Requirements Evaluator"
+  short_description: "Score requirement docs and surface quality gaps."
+  default_prompt: "Use $requirements-evaluator to evaluate these requirement documents and generate a Chinese report."
