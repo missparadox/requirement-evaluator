@@ -1,5 +1,7 @@
 import json
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 from app.adapters.packet_builder import build_review_packet
 from app.storage.evaluation_store import EvaluationStore
@@ -41,3 +43,21 @@ def test_build_review_packet_creates_markdown_file(tmp_path: Path) -> None:
     output_path = tmp_path / "packet.md"
     build_review_packet(input_path=input_path, output_path=output_path)
     assert output_path.exists()
+
+
+def test_build_review_packet_raises_runtime_error_on_subprocess_failure(tmp_path: Path, monkeypatch) -> None:
+    input_path = tmp_path / "requirements.csv"
+    output_path = tmp_path / "packet.md"
+    failing_result = SimpleNamespace(returncode=1, stderr="boom", stdout="")
+    run_mock = Mock(return_value=failing_result)
+    monkeypatch.setattr("app.adapters.packet_builder.subprocess.run", run_mock)
+
+    try:
+        build_review_packet(input_path=input_path, output_path=output_path)
+    except RuntimeError as exc:
+        message = str(exc)
+        assert str(input_path) in message
+        assert str(output_path) in message
+        assert "boom" in message
+    else:
+        raise AssertionError("build_review_packet() did not raise RuntimeError")

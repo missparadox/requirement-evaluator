@@ -22,4 +22,7 @@ def build_review_packet(*, input_path: Path, output_path: Path) -> None:
         check=False,
     )
     if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "Packet builder failed")
+        error_detail = result.stderr.strip() or result.stdout.strip() or "Packet builder failed"
+        raise RuntimeError(
+            f"Packet builder failed for input={input_path} output={output_path}: {error_detail}"
+        )
