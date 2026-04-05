@@ -23,7 +23,7 @@ class EvaluationService:
     def __init__(self, store) -> None:
         self.store = store
         settings = get_settings()
-        self.model_name = settings.model_name
+        self.model_name = settings.codex_model
         self.model_provider = model_provider_name()
         self.skill_version = sha256_file(SKILL_FILE)
         self.report_template_version = sha256_file(REPORT_TEMPLATE_FILE)

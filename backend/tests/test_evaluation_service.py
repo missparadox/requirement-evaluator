@@ -48,6 +48,7 @@ def test_get_settings_normalizes_blank_provider_values_to_defaults(monkeypatch) 
     assert settings.zhipu_base_url == "https://open.bigmodel.cn/api/paas/v4"
     assert settings.codex_model == "gpt-5.4"
     assert settings.debug_fallback_enabled is False
+    assert not hasattr(settings, "model_name")
 
 
 def test_get_settings_enables_debug_fallback_only_for_one(monkeypatch) -> None:
@@ -78,6 +79,7 @@ def test_get_settings_reads_explicit_provider_values_unchanged(monkeypatch) -> N
     assert settings.zhipu_base_url == "https://example.com/zhipu"
     assert settings.codex_model == "codex-model"
     assert settings.debug_fallback_enabled is True
+    assert not hasattr(settings, "model_name")
 
 
 def test_create_returns_new_evaluation_id_when_no_match(tmp_path: Path) -> None:

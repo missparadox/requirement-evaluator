@@ -33,10 +33,6 @@ class Settings:
     codex_model: str
     debug_fallback_enabled: bool
 
-    @property
-    def model_name(self) -> str:
-        return self.openai_model
-
 
 def get_settings() -> Settings:
     data_dir = Path(_env_or_default("REQUIREMENTS_EVALUATOR_DATA_DIR", str(REPO_ROOT / "data")))

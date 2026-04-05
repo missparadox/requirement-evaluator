@@ -23,7 +23,7 @@ def get_runner() -> EvaluationRunner:
     settings = get_settings()
     return EvaluationRunner(
         store=get_store(),
-        model_client=build_model_client(settings.model_name),
+        model_client=build_model_client(settings.codex_model),
     )
 
 
