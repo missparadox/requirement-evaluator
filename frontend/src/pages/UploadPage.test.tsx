@@ -58,15 +58,15 @@ test("submitting a selected file posts an evaluation request", async () => {
   fireEvent.change(screen.getByLabelText("评估文件上传"), {
     target: { files: [file] },
   });
-  fireEvent.click(screen.getByRole("button", { name: "开始评估" }));
+  const submitButton = screen.getByRole("button", { name: "开始评估" });
+  fireEvent.click(submitButton);
+  fireEvent.click(submitButton);
 
   await waitFor(() => {
     expect(screen.getByRole("button", { name: "提交中..." })).toBeDisabled();
     expect(screen.getByRole("button", { name: "选择文件" })).toBeDisabled();
     expect(screen.getByLabelText("评估文件上传")).toBeDisabled();
   });
-
-  fireEvent.click(screen.getByRole("button", { name: "提交中..." }));
 
   await waitFor(() => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
