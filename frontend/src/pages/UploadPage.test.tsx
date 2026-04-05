@@ -42,10 +42,19 @@ test("submitting a selected file posts an evaluation request", async () => {
     </MemoryRouter>,
   );
 
-  fireEvent.change(screen.getByLabelText("Requirement File"), {
+  expect(screen.getByRole("heading", { name: "需求评估平台" })).toBeInTheDocument();
+  expect(screen.getByText("Requirements Evaluation Suite")).toBeInTheDocument();
+  expect(screen.getByText("阶段 01")).toBeInTheDocument();
+  expect(screen.getByText("阶段 02")).toBeInTheDocument();
+  expect(screen.getByText("阶段 03")).toBeInTheDocument();
+  expect(screen.getByText("评估文件上传")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "选择文件" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "开始评估" })).toBeInTheDocument();
+
+  fireEvent.change(screen.getByLabelText("评估文件上传"), {
     target: { files: [file] },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Start Evaluation" }));
+  fireEvent.click(screen.getByRole("button", { name: "开始评估" }));
 
   await waitFor(() => {
     expect(fetchMock).toHaveBeenCalled();
