@@ -3,6 +3,7 @@ from pathlib import Path
 from unittest.mock import Mock
 
 from app.clients.model_client import OpenAIModelClient, StaticModelClient, build_model_client
+from app.core.config import get_settings
 from app.runners.evaluation_runner import EvaluationRunner
 from app.services.evaluation_service import EvaluationService
 from app.storage.evaluation_store import EvaluationStore
@@ -25,6 +26,58 @@ def test_build_model_client_returns_openai_client_with_api_key(monkeypatch) -> N
     client = build_model_client("gpt-5.4")
     assert isinstance(client, OpenAIModelClient)
     assert client.model_name == "gpt-5.4"
+
+
+def test_get_settings_normalizes_blank_provider_values_to_defaults(monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "")
+    monkeypatch.setenv("OPENAI_MODEL", "")
+    monkeypatch.setenv("OPENAI_BASE_URL", "")
+    monkeypatch.setenv("ZHIPU_API_KEY", "")
+    monkeypatch.setenv("ZHIPU_MODEL", "")
+    monkeypatch.setenv("ZHIPU_BASE_URL", "")
+    monkeypatch.setenv("CODEX_MODEL", "")
+    monkeypatch.setenv("REQUIREMENTS_EVALUATOR_DEBUG_FALLBACK", "")
+
+    settings = get_settings()
+
+    assert settings.openai_api_key is None
+    assert settings.openai_model == "gpt-5.4"
+    assert settings.openai_base_url == "https://api.openai.com/v1"
+    assert settings.zhipu_api_key is None
+    assert settings.zhipu_model == "glm-5"
+    assert settings.zhipu_base_url == "https://open.bigmodel.cn/api/paas/v4"
+    assert settings.codex_model == "gpt-5.4"
+    assert settings.debug_fallback_enabled is False
+
+
+def test_get_settings_enables_debug_fallback_only_for_one(monkeypatch) -> None:
+    monkeypatch.setenv("REQUIREMENTS_EVALUATOR_DEBUG_FALLBACK", "1")
+    assert get_settings().debug_fallback_enabled is True
+
+    monkeypatch.setenv("REQUIREMENTS_EVALUATOR_DEBUG_FALLBACK", "true")
+    assert get_settings().debug_fallback_enabled is False
+
+
+def test_get_settings_reads_explicit_provider_values_unchanged(monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "openai-key")
+    monkeypatch.setenv("OPENAI_MODEL", "openai-model")
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://example.com/openai")
+    monkeypatch.setenv("ZHIPU_API_KEY", "zhipu-key")
+    monkeypatch.setenv("ZHIPU_MODEL", "zhipu-model")
+    monkeypatch.setenv("ZHIPU_BASE_URL", "https://example.com/zhipu")
+    monkeypatch.setenv("CODEX_MODEL", "codex-model")
+    monkeypatch.setenv("REQUIREMENTS_EVALUATOR_DEBUG_FALLBACK", "1")
+
+    settings = get_settings()
+
+    assert settings.openai_api_key == "openai-key"
+    assert settings.openai_model == "openai-model"
+    assert settings.openai_base_url == "https://example.com/openai"
+    assert settings.zhipu_api_key == "zhipu-key"
+    assert settings.zhipu_model == "zhipu-model"
+    assert settings.zhipu_base_url == "https://example.com/zhipu"
+    assert settings.codex_model == "codex-model"
+    assert settings.debug_fallback_enabled is True
 
 
 def test_create_returns_new_evaluation_id_when_no_match(tmp_path: Path) -> None:
