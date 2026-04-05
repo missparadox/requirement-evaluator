@@ -1,8 +1,10 @@
 import json
+import subprocess
 from pathlib import Path
 from unittest.mock import Mock
 
 from app.clients.model_client import (
+    CodexModelClient,
     OpenAIModelClient,
     StaticModelClient,
     build_model_client,
@@ -44,12 +46,16 @@ def test_static_model_client_returns_markdown() -> None:
     assert report.startswith("#")
 
 
-def test_build_model_client_returns_static_client_without_provider_or_debug_fallback() -> None:
+def test_build_model_client_returns_static_client_without_provider_or_debug_fallback(monkeypatch) -> None:
+    monkeypatch.setattr("app.clients.model_client.shutil.which", Mock(return_value=None))
     client = build_model_client(make_settings())
     assert isinstance(client, StaticModelClient)
 
 
-def test_build_model_client_returns_static_client_for_debug_fallback() -> None:
+def test_build_model_client_returns_static_client_for_debug_fallback_when_codex_is_unavailable(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr("app.clients.model_client.shutil.which", Mock(return_value=None))
     settings = make_settings(debug_fallback_enabled=True, codex_model="debug-codex-model")
 
     assert model_provider_name(settings) == "debug"
@@ -58,10 +64,11 @@ def test_build_model_client_returns_static_client_for_debug_fallback() -> None:
     assert isinstance(client, StaticModelClient)
 
 
-def test_build_model_client_prefers_openai_over_zhipu_and_debug(monkeypatch) -> None:
+def test_build_model_client_prefers_openai_over_zhipu_codex_and_debug(monkeypatch) -> None:
     created_client = object()
     openai_factory = Mock(return_value=created_client)
     monkeypatch.setattr("app.clients.model_client.OpenAI", openai_factory)
+    monkeypatch.setattr("app.clients.model_client.shutil.which", Mock(return_value="/usr/local/bin/codex"))
     settings = make_settings(
         openai_api_key="openai-key",
         openai_model="openai-model",
@@ -84,10 +91,11 @@ def test_build_model_client_prefers_openai_over_zhipu_and_debug(monkeypatch) -> 
     )
 
 
-def test_build_model_client_uses_zhipu_when_openai_unavailable(monkeypatch) -> None:
+def test_build_model_client_uses_zhipu_over_codex_and_debug_when_openai_unavailable(monkeypatch) -> None:
     created_client = object()
     openai_factory = Mock(return_value=created_client)
     monkeypatch.setattr("app.clients.model_client.OpenAI", openai_factory)
+    monkeypatch.setattr("app.clients.model_client.shutil.which", Mock(return_value="/usr/local/bin/codex"))
     settings = make_settings(
         zhipu_api_key="zhipu-key",
         zhipu_model="zhipu-model",
@@ -105,6 +113,27 @@ def test_build_model_client_uses_zhipu_when_openai_unavailable(monkeypatch) -> N
         api_key="zhipu-key",
         base_url="https://example.com/zhipu",
     )
+
+
+def test_build_model_client_returns_codex_when_cli_present_and_api_providers_absent(monkeypatch) -> None:
+    monkeypatch.setattr("app.clients.model_client.shutil.which", Mock(return_value="/usr/local/bin/codex"))
+    settings = make_settings(codex_model="codex-model", debug_fallback_enabled=True)
+
+    assert model_provider_name(settings) == "codex"
+    client = build_model_client(settings)
+
+    assert isinstance(client, CodexModelClient)
+    assert client.model_name == "codex-model"
+
+
+def test_build_model_client_prefers_codex_over_debug_fallback(monkeypatch) -> None:
+    monkeypatch.setattr("app.clients.model_client.shutil.which", Mock(return_value="/usr/local/bin/codex"))
+    settings = make_settings(codex_model="codex-model", debug_fallback_enabled=True)
+
+    assert model_provider_name(settings) == "codex"
+    client = build_model_client(settings)
+
+    assert isinstance(client, CodexModelClient)
 
 
 def test_get_settings_normalizes_blank_provider_values_to_defaults(monkeypatch) -> None:
@@ -131,6 +160,7 @@ def test_get_settings_normalizes_blank_provider_values_to_defaults(monkeypatch) 
 
 
 def test_get_settings_enables_debug_fallback_only_for_one(monkeypatch) -> None:
+    monkeypatch.setattr("app.clients.model_client.shutil.which", Mock(return_value=None))
     monkeypatch.setenv("REQUIREMENTS_EVALUATOR_DEBUG_FALLBACK", "1")
     assert get_settings().debug_fallback_enabled is True
 
@@ -306,3 +336,68 @@ def test_openai_model_client_uses_responses_api_instructions_and_input() -> None
             "[PACKET]\npacket text\n"
         ),
     )
+
+
+def test_codex_model_client_runs_subprocess_and_returns_trimmed_stdout(monkeypatch) -> None:
+    run_mock = Mock(
+        return_value=subprocess.CompletedProcess(
+            args=["codex"],
+            returncode=0,
+            stdout="  # Codex Report  \n",
+            stderr="",
+        )
+    )
+    monkeypatch.setattr("app.clients.model_client.subprocess.run", run_mock)
+    client = CodexModelClient(model_name="gpt-5.4")
+
+    report = client.generate_report(
+        skill_text="skill text",
+        template_text="template text",
+        packet_text="packet text",
+    )
+
+    assert report == "# Codex Report"
+    run_mock.assert_called_once_with(
+        [
+            "codex",
+            "exec",
+            "--model",
+            "gpt-5.4",
+            (
+                "You are a requirements evaluation assistant. "
+                "Follow the rubric and produce the final answer in Chinese Markdown using the template.\n\n"
+                "[SKILL]\n"
+                "skill text\n\n"
+                "[TEMPLATE]\n"
+                "template text\n\n"
+                "[PACKET]\n"
+                "packet text\n"
+            ),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_codex_model_client_raises_on_empty_stdout(monkeypatch) -> None:
+    run_mock = Mock(
+        return_value=subprocess.CompletedProcess(
+            args=["codex"],
+            returncode=0,
+            stdout=" \n\t ",
+            stderr="",
+        )
+    )
+    monkeypatch.setattr("app.clients.model_client.subprocess.run", run_mock)
+    client = CodexModelClient(model_name="gpt-5.4")
+
+    try:
+        client.generate_report(
+            skill_text="skill text",
+            template_text="template text",
+            packet_text="packet text",
+        )
+    except RuntimeError as exc:
+        assert str(exc) == "Codex CLI returned empty stdout."
+    else:
+        raise AssertionError("CodexModelClient.generate_report() did not raise on empty stdout")
