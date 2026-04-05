@@ -21,15 +21,19 @@ test("submitting a selected file posts an evaluation request", async () => {
   const file = new File(["OR需求编号,OR需求名称*,OR需求描述*\nD1,N,D\n"], "requirements.csv", {
     type: "text/csv",
   });
+  let resolveRequest!: (value: {
+    evaluation_id: string;
+    status: string;
+    filename: string;
+    dedupe_hit: boolean;
+    created_at: string;
+  }) => void;
   const fetchMock = vi.fn().mockResolvedValue({
     ok: true,
-    json: async () => ({
-      evaluation_id: "eval_123",
-      status: "pending",
-      filename: "requirements.csv",
-      dedupe_hit: false,
-      created_at: "2026-04-05T00:00:00Z",
-    }),
+    json: async () =>
+      new Promise((resolve) => {
+        resolveRequest = resolve;
+      }),
   });
   vi.stubGlobal("fetch", fetchMock);
 
@@ -57,7 +61,15 @@ test("submitting a selected file posts an evaluation request", async () => {
   fireEvent.click(screen.getByRole("button", { name: "开始评估" }));
 
   await waitFor(() => {
-    expect(fetchMock).toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "提交中..." })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "选择文件" })).toBeDisabled();
+    expect(screen.getByLabelText("评估文件上传")).toBeDisabled();
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "提交中..." }));
+
+  await waitFor(() => {
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/evaluations",
       expect.objectContaining({
@@ -65,6 +77,14 @@ test("submitting a selected file posts an evaluation request", async () => {
         body: expect.any(FormData),
       }),
     );
+  });
+
+  resolveRequest({
+    evaluation_id: "eval_123",
+    status: "pending",
+    filename: "requirements.csv",
+    dedupe_hit: false,
+    created_at: "2026-04-05T00:00:00Z",
   });
 
   expect(await screen.findByText("evaluation destination: eval_123")).toBeInTheDocument();

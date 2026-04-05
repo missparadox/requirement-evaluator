@@ -1,4 +1,4 @@
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, type ChangeEvent, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { createEvaluation } from "../features/evaluations/api";
@@ -6,6 +6,7 @@ import { createEvaluation } from "../features/evaluations/api";
 export function FileUploadForm() {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
+  const submitLockRef = useRef(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -13,11 +14,14 @@ export function FileUploadForm() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!selectedFile) {
-      setError("请选择待评估文件。");
+    if (!selectedFile || submitLockRef.current) {
+      if (!selectedFile) {
+        setError("请选择待评估文件。");
+      }
       return;
     }
 
+    submitLockRef.current = true;
     setError(null);
     setIsSubmitting(true);
 
@@ -27,8 +31,25 @@ export function FileUploadForm() {
     } catch {
       setError("评估提交失败，请稍后重试。");
     } finally {
+      submitLockRef.current = false;
       setIsSubmitting(false);
     }
+  }
+
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    if (isSubmitting) {
+      return;
+    }
+    const file = event.target.files?.[0] ?? null;
+    setSelectedFile(file);
+    setError(null);
+  }
+
+  function handleChooseFile() {
+    if (isSubmitting) {
+      return;
+    }
+    inputRef.current?.click();
   }
 
   return (
@@ -41,9 +62,8 @@ export function FileUploadForm() {
         <button
           className="upload-secondary-button"
           type="button"
-          onClick={() => {
-            inputRef.current?.click();
-          }}
+          onClick={handleChooseFile}
+          disabled={isSubmitting}
         >
           选择文件
         </button>
@@ -52,11 +72,8 @@ export function FileUploadForm() {
           id="requirements-file"
           name="file"
           type="file"
-          onChange={(event) => {
-            const file = event.target.files?.[0] ?? null;
-            setSelectedFile(file);
-            setError(null);
-          }}
+          disabled={isSubmitting}
+          onChange={handleFileChange}
         />
       </div>
       <p className="upload-help">
