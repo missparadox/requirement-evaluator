@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 import { afterEach } from "vitest";
 import { vi } from "vitest";
@@ -59,8 +59,16 @@ test("submitting a selected file posts an evaluation request", async () => {
     target: { files: [file] },
   });
   const submitButton = screen.getByRole("button", { name: "开始评估" });
-  fireEvent.click(submitButton);
-  fireEvent.click(submitButton);
+  const form = submitButton.closest("form");
+
+  if (!form) {
+    throw new Error("Expected upload form to be present.");
+  }
+
+  await act(async () => {
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+  });
 
   await waitFor(() => {
     expect(screen.getByRole("button", { name: "提交中..." })).toBeDisabled();
