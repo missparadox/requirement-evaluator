@@ -6,6 +6,7 @@ import { createEvaluation } from "../features/evaluations/api";
 export function FileUploadForm() {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
+  // Close the same-tick double-submit window before React applies disabled state.
   const submitLockRef = useRef(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);

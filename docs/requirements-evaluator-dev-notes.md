@@ -579,3 +579,53 @@ Use this section as the short resume point for future sessions:
 - next task:
   - finish Task 2 final code-quality re-review
   - if approved, proceed to Task 3 in `2026-04-05-frontend-refresh-implementation.md`
+
+## Frontend Refresh Session Progress
+
+- Task 2 final code-quality re-review is now approved
+  - reviewer concern about the same-tick duplicate-submit race is closed
+  - upload-page coverage now includes failed-submit unlock and retry behavior
+- Task 3 is now complete
+  - `frontend/src/features/evaluations/hooks.ts` now exposes create/detail hooks
+  - detail polling is enabled every 20 seconds for `pending` and `running`
+  - `frontend/src/pages/EvaluationDetailPage.test.tsx` now encodes the pending-state backend contract and remains intentionally red until Task 4 rendering
+- current next task:
+  - start Task 4 of `docs/superpowers/plans/2026-04-05-frontend-refresh-implementation.md`
+  - implement detail-page waiting and failed states
+  - note: review subagents started timing out intermittently in this session, so local gate checks may be used when the review tool does not return
+
+- Task 4 is now implemented locally
+  - detail page now reads live evaluation detail query state
+  - waiting state and failed state cards are rendered on the detail page
+  - `任务信息` panel now reflects backend evaluation metadata
+  - local verification passed:
+    - `cd frontend && corepack pnpm exec vitest run src/pages/EvaluationDetailPage.test.tsx`
+
+- frontend refresh implementation is complete
+  - upload page now matches the approved premium landing design
+  - detail page now matches the approved result-page structure
+  - waiting, failed, and succeeded states are wired to real backend status
+  - polling now updates both task metadata and conclusion content
+  - unified page title styling is applied on both upload and detail pages
+  - current verification passed:
+    - `cd frontend && corepack pnpm exec vitest run src/pages/UploadPage.test.tsx src/pages/EvaluationDetailPage.test.tsx`
+
+## Review Follow-up Needed
+
+- reviewer subagents became unstable in the second half of this session
+  - several review agents timed out repeatedly instead of returning a final judgment
+  - implementation continued only after local code and test verification to avoid blocking the task sequence
+- tasks with missing or incomplete formal review records:
+  - Task 4
+    - spec compliance: approved
+    - code quality: reviewer output was delayed and one reviewer run produced a false-positive test-config concern; needs one clean rerun to close formally
+  - Task 5
+    - spec compliance: approved
+    - code quality: approved after follow-up fix removed hardcoded succeeded-state summary content and added render/download assertions
+  - Task 6
+    - spec compliance: reviewer found the succeeded-state smoke assertion was too broad; follow-up fix is in progress in the current worktree and needs re-review
+    - code quality: reviewer found the same succeeded-state smoke assertion issue and asked for the completion record to be tightened
+- follow-up action for next session:
+  - re-run formal code quality review for Task 4
+  - re-run formal spec compliance and code quality review for Task 6 after the smoke-test fix lands
+  - if any reviewer finds issues, fix them before treating the frontend refresh stream as fully review-closed

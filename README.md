@@ -26,7 +26,9 @@ Current phase 1 status:
 - create-or-reuse evaluation flow is implemented
 - background runner flow is implemented
 - evaluation API endpoints are implemented
-- frontend upload page and detail page shells are implemented
+- frontend upload experience matches the approved premium landing design
+- frontend detail page now renders live pending, running, failed, and succeeded states from the backend
+- frontend detail view includes polling, task metadata, report download, and structured result sections
 
 ## Frontend Setup
 

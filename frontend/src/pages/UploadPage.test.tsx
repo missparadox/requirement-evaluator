@@ -47,6 +47,7 @@ test("submitting a selected file posts an evaluation request", async () => {
   );
 
   expect(screen.getByRole("heading", { name: "需求评估平台" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "需求评估平台" })).toHaveClass("page-title");
   expect(screen.getByText("Requirements Evaluation Suite")).toBeInTheDocument();
   expect(screen.getByText("阶段 01")).toBeInTheDocument();
   expect(screen.getByText("阶段 02")).toBeInTheDocument();
@@ -96,4 +97,54 @@ test("submitting a selected file posts an evaluation request", async () => {
   });
 
   expect(await screen.findByText("evaluation destination: eval_123")).toBeInTheDocument();
+});
+
+test("failed submission unlocks the form and allows retry", async () => {
+  const file = new File(["OR需求编号,OR需求名称*,OR需求描述*\nD1,N,D\n"], "requirements.csv", {
+    type: "text/csv",
+  });
+  const fetchMock = vi
+    .fn()
+    .mockRejectedValueOnce(new Error("network error"))
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        evaluation_id: "eval_retry",
+        status: "pending",
+        filename: "requirements.csv",
+        dedupe_hit: false,
+        created_at: "2026-04-05T00:00:00Z",
+      }),
+    });
+  vi.stubGlobal("fetch", fetchMock);
+
+  render(
+    <MemoryRouter>
+      <Routes>
+        <Route path="/" element={<UploadPage />} />
+        <Route path="/evaluations/:evaluationId" element={<EvaluationDestination />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  fireEvent.change(screen.getByLabelText("评估文件上传"), {
+    target: { files: [file] },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "开始评估" }));
+
+  expect(await screen.findByText("评估提交失败，请稍后重试。")).toBeInTheDocument();
+
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: "开始评估" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "选择文件" })).toBeEnabled();
+    expect(screen.getByLabelText("评估文件上传")).toBeEnabled();
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "开始评估" }));
+
+  await waitFor(() => {
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  expect(await screen.findByText("evaluation destination: eval_retry")).toBeInTheDocument();
 });
