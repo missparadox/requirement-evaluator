@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, vi } from "vitest";
 
@@ -66,6 +66,11 @@ test("shows pending backend state for a pending evaluation", async () => {
 
   expect(await screen.findByText("评估准备中")).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "需求评估结果" })).toHaveClass("page-title");
+  expect(screen.getByText("任务信息")).toBeInTheDocument();
+  expect(screen.getByText("评估结论")).toBeInTheDocument();
+  expect(screen.getByText("评估编号")).toBeInTheDocument();
+  expect(screen.getByText("文件名称")).toBeInTheDocument();
+  expect(screen.getByText("任务状态")).toBeInTheDocument();
 });
 
 test("shows running backend state for an in-progress evaluation", async () => {
@@ -95,8 +100,8 @@ test("shows running backend state for an in-progress evaluation", async () => {
 
   renderEvaluationDetailPage();
 
-  expect(await screen.findByText("评估进行中")).toBeInTheDocument();
-  expect(screen.getByText("系统将在 20 秒后刷新最新状态")).toBeInTheDocument();
+  expect((await screen.findAllByText("评估进行中")).length).toBeGreaterThan(0);
+  expect(screen.getByText("评估依赖模型处理，系统正在生成分析结果。页面将每 20 秒自动刷新，请耐心等待。")).toBeInTheDocument();
 });
 
 test("shows failed backend state with retry actions", async () => {
@@ -126,10 +131,23 @@ test("shows failed backend state with retry actions", async () => {
 
   renderEvaluationDetailPage();
 
-  expect(await screen.findByText("评估失败")).toBeInTheDocument();
+  expect((await screen.findAllByText("评估失败")).length).toBeGreaterThan(0);
   expect(screen.getByText("后端服务不可用")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "重新发起评估" })).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "返回首页" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "回到上传页面" })).toBeInTheDocument();
+});
+
+test("keeps the page skeleton visible when detail loading fails", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => new Response("boom", { status: 500 })));
+
+  renderEvaluationDetailPage();
+
+  expect(await screen.findByRole("heading", { name: "需求评估结果" })).toBeInTheDocument();
+  expect(screen.getByText("任务信息")).toBeInTheDocument();
+  expect(screen.getByText("评估结论")).toBeInTheDocument();
+  expect(screen.getByText("评估编号")).toBeInTheDocument();
+  expect(screen.getByText("任务状态")).toBeInTheDocument();
+  expect(await screen.findByRole("button", { name: "重新发起评估" })).toBeInTheDocument();
 });
 
 test("shows succeeded backend state in the approved result structure", async () => {
@@ -159,11 +177,23 @@ test("shows succeeded backend state in the approved result structure", async () 
 
   renderEvaluationDetailPage();
 
-  expect(await screen.findByText("评估已完成")).toBeInTheDocument();
+  expect((await screen.findAllByText("评估已完成")).length).toBeGreaterThan(0);
   fireEvent.click(screen.getByRole("button", { name: "下载评估报告" }));
   expect(downloadMarkdown).toHaveBeenCalledWith("eval_123.md", "# 标题\n\n总体评分：92\n\n报告内容");
   expect(screen.getByText("总体评分")).toBeInTheDocument();
-  expect(screen.getAllByText("摘要结论").length).toBeGreaterThan(0);
-  expect(screen.getByText("详细报告").closest("section")).toHaveTextContent("报告内容");
+  expect(screen.getByText("建议状态")).toBeInTheDocument();
+  expect(screen.queryByText("核心风险")).not.toBeInTheDocument();
+  expect(screen.queryByText("优先动作")).not.toBeInTheDocument();
+  expect(screen.queryByText("评估说明")).not.toBeInTheDocument();
+  expect(screen.queryAllByText("摘要结论")).toHaveLength(0);
+
+  await waitFor(() => {
+    expect(screen.getByText("核心风险")).toBeInTheDocument();
+    expect(screen.getByText("优先动作")).toBeInTheDocument();
+    expect(screen.getByText("评估说明")).toBeInTheDocument();
+    expect(screen.getAllByText("摘要结论").length).toBeGreaterThan(0);
+  });
+
+  expect(screen.getAllByText("详细报告")[0]?.closest("section")).toHaveTextContent("报告内容");
   expect(screen.getByText("92")).toBeInTheDocument();
 });

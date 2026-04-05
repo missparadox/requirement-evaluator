@@ -1,9 +1,20 @@
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { EvaluationStatusPanel } from "../components/EvaluationStatusPanel";
 import { ReportViewer } from "../components/ReportViewer";
 import { useEvaluationDetail } from "../features/evaluations/hooks";
 import { downloadMarkdown } from "../lib/download";
+
+function SectionDivider({ title }: { title: string }) {
+  return (
+    <div className="section-divider" aria-hidden="true">
+      <span className="section-divider-line" />
+      <h2 className="section-divider-title">{title}</h2>
+      <span className="section-divider-line" />
+    </div>
+  );
+}
 
 function getReportScore(markdown: string) {
   const match = markdown.match(/(?:总体评分|总分|score)\s*[:：]?\s*(\d{1,3})/i);
@@ -20,19 +31,43 @@ function getReportSummary(markdown: string) {
   return lines[0] ?? "结果摘要将随报告内容展示。";
 }
 
+function getSuggestionState(score: string) {
+  const numericScore = Number.parseInt(score, 10);
+
+  if (Number.isNaN(numericScore)) {
+    return "建议人工复核";
+  }
+  if (numericScore >= 85) {
+    return "建议推进";
+  }
+  if (numericScore >= 70) {
+    return "建议补充后推进";
+  }
+  return "建议暂缓";
+}
+
+function findKeywordLine(markdown: string, keywords: string[]) {
+  const lines = markdown
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("#"));
+
+  return lines.find((line) => keywords.some((keyword) => line.includes(keyword)));
+}
+
 function WaitingStateCard({ status }: { status: "pending" | "running" }) {
   const title = status === "pending" ? "评估准备中" : "评估进行中";
   const message =
     status === "pending"
       ? "评估任务已创建，系统正在准备分析所需内容。结果将自动刷新，请稍候。"
-      : "平台正在基于当前文档执行结构化分析与模型评估，结果将在处理完成后自动同步至页面。";
+      : "评估依赖模型处理，系统正在生成分析结果。页面将每 20 秒自动刷新，请耐心等待。";
 
   return (
     <section className="state-card waiting-card" aria-live="polite">
       <div className="state-card-mark" aria-hidden="true">
         ◌
       </div>
-      <p className="state-card-label">Status</p>
+      <p className="state-card-label">状态</p>
       <h2 className="detail-card-title">{title}</h2>
       <p className="detail-copy">{message}</p>
       <div className="refresh-inline-card">
@@ -58,7 +93,7 @@ function FailedStateCard({
       <div className="state-card-mark" aria-hidden="true">
         !
       </div>
-      <p className="state-card-label">Status</p>
+      <p className="state-card-label">状态</p>
       <h2 className="detail-card-title">评估失败</h2>
       <p className="detail-copy">
         当前评估任务未能完成结果生成。你可以重新发起评估，或返回首页重新提交文档。
@@ -72,7 +107,7 @@ function FailedStateCard({
           重新发起评估
         </button>
         <Link className="detail-link" to="/">
-          返回首页
+          回到上传页面
         </Link>
       </div>
     </section>
@@ -80,40 +115,72 @@ function FailedStateCard({
 }
 
 function SucceededState({ evaluationId, markdown }: { evaluationId: string; markdown: string }) {
+  const [revealPhase, setRevealPhase] = useState(1);
   const reportScore = getReportScore(markdown);
   const reportSummary = getReportSummary(markdown);
+  const suggestionState = getSuggestionState(reportScore);
+  const risk =
+    findKeywordLine(markdown, ["风险", "问题", "缺失"]) ?? "报告中未显式列出核心风险，建议结合详细报告进行人工复核。";
+  const action =
+    findKeywordLine(markdown, ["建议", "动作", "改进", "补充"]) ?? "优先补充关键需求信息，并基于详细报告完成进一步修订。";
+  const explanation =
+    findKeywordLine(markdown, ["说明", "依据", "结论", "评分"]) ?? "本结论基于当前上传文档的结构化分析结果生成，详细依据请见完整报告。";
+
+  useEffect(() => {
+    setRevealPhase(1);
+    const timers = [
+      window.setTimeout(() => setRevealPhase(2), 80),
+      window.setTimeout(() => setRevealPhase(3), 400),
+      window.setTimeout(() => setRevealPhase(4), 700),
+    ];
+
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [markdown]);
 
   return (
     <>
-      <section className="detail-panel conclusion-hero-card">
-        <div className="conclusion-hero-header">
-          <div>
-            <p className="eyebrow">Overall Assessment</p>
-            <h2 className="detail-card-title">评估已完成</h2>
+      <section className="result-overview-grid">
+        <section className="detail-panel conclusion-hero-card">
+          <div className="conclusion-hero-header">
+            <div>
+              <p className="eyebrow">评估结论</p>
+              <h2 className="detail-card-title">评估已完成</h2>
+            </div>
+            <button
+              className="upload-primary-button"
+              type="button"
+              onClick={() => downloadMarkdown(`${evaluationId}.md`, markdown)}
+            >
+              下载评估报告
+            </button>
           </div>
-          <button
-            className="upload-primary-button"
-            type="button"
-            onClick={() => downloadMarkdown(`${evaluationId}.md`, markdown)}
-          >
-            下载评估报告
-          </button>
-        </div>
-        <p className="detail-copy">
-          系统已完成当前文档的结构化评估，以下为本次任务的结果摘要。
-        </p>
+          <p className="detail-copy">
+            {reportSummary}
+          </p>
+        </section>
+        <section className="result-side-cards">
+          <article className="detail-panel result-metric-card">
+            <p>总体评分</p>
+            <strong>{reportScore}</strong>
+          </article>
+          <article className="detail-panel result-metric-card">
+            <p>建议状态</p>
+            <strong>{suggestionState}</strong>
+          </article>
+        </section>
       </section>
-      <section className="result-side-cards">
-        <article className="detail-panel result-metric-card">
-          <p>总体评分</p>
-          <strong>{reportScore}</strong>
-        </article>
-        <article className="detail-panel result-metric-card">
-          <p>摘要结论</p>
-          <strong>{reportSummary}</strong>
-        </article>
-      </section>
-      <ReportViewer markdown={markdown} summary={reportSummary} />
+      {revealPhase >= 3 ? (
+        <ReportViewer
+          action={action}
+          explanation={explanation}
+          markdown={markdown}
+          risk={risk}
+          summary={reportSummary}
+          showSummary={revealPhase >= 4}
+        />
+      ) : null}
     </>
   );
 }
@@ -126,20 +193,16 @@ export function EvaluationDetailPage() {
   const markdown =
     evaluation?.report_markdown ?? `# Evaluation ${evaluationId ?? "unknown"}\n\nReport pending.`;
 
-  if (evaluationDetailQuery.isError) {
-    const errorMessage =
-      evaluationDetailQuery.error instanceof Error
-        ? evaluationDetailQuery.error.message
-        : "评估状态获取失败，请稍后重试。";
-
-    return (
-      <main className="detail-shell">
-        <FailedStateCard errorMessage={errorMessage} onRetry={() => navigate("/")} />
-      </main>
-    );
-  }
-
   const renderStateCard = () => {
+    if (evaluationDetailQuery.isError) {
+      const errorMessage =
+        evaluationDetailQuery.error instanceof Error
+          ? evaluationDetailQuery.error.message
+          : "评估状态获取失败，请稍后重试。";
+
+      return <FailedStateCard errorMessage={errorMessage} onRetry={() => navigate("/")} />;
+    }
+
     if (!evaluation || evaluation.status === "pending") {
       return <WaitingStateCard status="pending" />;
     }
@@ -162,7 +225,13 @@ export function EvaluationDetailPage() {
 
   return (
     <main className="detail-shell">
+      <header className="detail-header">
+        <p className="page-overline">Requirements Evaluation Suite</p>
+        <h1 className="page-title">需求评估结果</h1>
+      </header>
+      <SectionDivider title="任务信息" />
       <EvaluationStatusPanel evaluationId={evaluationId} evaluation={evaluation ?? null} />
+      <SectionDivider title="评估结论" />
       {renderStateCard()}
     </main>
   );
