@@ -56,25 +56,46 @@ function findKeywordLine(markdown: string, keywords: string[]) {
 }
 
 function WaitingStateCard({ status }: { status: "pending" | "running" }) {
+  const refreshSeconds = 30;
+  const [secondsRemaining, setSecondsRemaining] = useState(refreshSeconds);
+
   const title = status === "pending" ? "评估准备中" : "评估进行中";
   const message =
     status === "pending"
       ? "评估任务已创建，系统正在准备分析所需内容。结果将自动刷新，请稍候。"
-      : "评估依赖模型处理，系统正在生成分析结果。页面将每 20 秒自动刷新，请耐心等待。";
+      : "评估依赖模型处理，系统正在生成分析结果。页面将每 30 秒自动刷新，请耐心等待。";
+
+  useEffect(() => {
+    setSecondsRemaining(refreshSeconds);
+
+    const timer = window.setInterval(() => {
+      setSecondsRemaining((current) => {
+        if (current <= 1) {
+          return refreshSeconds;
+        }
+
+        return current - 1;
+      });
+    }, 1_000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [status]);
 
   return (
     <section className="state-card waiting-card" aria-live="polite">
       <div className="state-card-mark" aria-hidden="true">
-        ◌
+        ...
       </div>
       <p className="state-card-label">状态</p>
       <h2 className="detail-card-title">{title}</h2>
       <p className="detail-copy">{message}</p>
       <div className="refresh-inline-card">
-        <div className="refresh-circle">20s</div>
+        <div className="refresh-circle">{secondsRemaining}s</div>
         <div>
           <p className="refresh-inline-title">状态刷新</p>
-          <p>系统将在 20 秒后刷新最新状态</p>
+          <p>系统将在 {secondsRemaining} 秒后刷新最新状态</p>
         </div>
       </div>
     </section>

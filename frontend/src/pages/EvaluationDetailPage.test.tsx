@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, vi } from "vitest";
 
@@ -12,6 +12,7 @@ vi.mock("../lib/download", () => ({
 
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -104,7 +105,50 @@ test("shows running backend state for an in-progress evaluation", async () => {
   renderEvaluationDetailPage();
 
   expect((await screen.findAllByText("评估进行中")).length).toBeGreaterThan(0);
-  expect(screen.getByText("评估依赖模型处理，系统正在生成分析结果。页面将每 20 秒自动刷新，请耐心等待。")).toBeInTheDocument();
+  expect(screen.getByText("评估依赖模型处理，系统正在生成分析结果。页面将每 30 秒自动刷新，请耐心等待。")).toBeInTheDocument();
+});
+
+test("waiting card countdown decreases and uses a waiting indicator", async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          evaluation_id: "eval_123",
+          status: "pending",
+          filename: "requirements.csv",
+          created_at: "2026-04-05T09:00:00Z",
+          started_at: null,
+          finished_at: null,
+          error_message: null,
+          report_markdown: null,
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+    }),
+  );
+
+  renderEvaluationDetailPage();
+
+  await act(async () => {
+    await Promise.resolve();
+  });
+
+  expect(screen.getByText("评估准备中")).toBeInTheDocument();
+  expect(screen.getByText("...")).toBeInTheDocument();
+  expect(screen.getByText("30s")).toBeInTheDocument();
+
+  await act(async () => {
+    vi.advanceTimersByTime(1_000);
+  });
+
+  expect(screen.getByText("29s")).toBeInTheDocument();
 });
 
 test("shows failed backend state with retry actions", async () => {
