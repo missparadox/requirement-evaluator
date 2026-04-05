@@ -1,9 +1,16 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 import { afterEach } from "vitest";
 import { vi } from "vitest";
 
 import { UploadPage } from "./UploadPage";
+
+
+function EvaluationDestination() {
+  const { evaluationId } = useParams();
+
+  return <p>evaluation destination: {evaluationId}</p>;
+}
 
 
 afterEach(() => {
@@ -28,7 +35,10 @@ test("submitting a selected file posts an evaluation request", async () => {
 
   render(
     <MemoryRouter>
-      <UploadPage />
+      <Routes>
+        <Route path="/" element={<UploadPage />} />
+        <Route path="/evaluations/:evaluationId" element={<EvaluationDestination />} />
+      </Routes>
     </MemoryRouter>,
   );
 
@@ -47,4 +57,6 @@ test("submitting a selected file posts an evaluation request", async () => {
       }),
     );
   });
+
+  expect(await screen.findByText("evaluation destination: eval_123")).toBeInTheDocument();
 });
