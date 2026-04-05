@@ -52,6 +52,7 @@ test("submitting a selected file posts an evaluation request", async () => {
   expect(screen.getByText("阶段 01")).toBeInTheDocument();
   expect(screen.getByText("阶段 02")).toBeInTheDocument();
   expect(screen.getByText("阶段 03")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "提交需求文档" })).toBeInTheDocument();
   expect(screen.getByText("评估文件上传")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "选择文件" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "开始评估" })).toBeInTheDocument();

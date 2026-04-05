@@ -40,15 +40,19 @@ select {
 .upload-shell {
   min-height: 100vh;
   display: grid;
-  place-items: center;
-  padding: 32px 24px;
+  padding: 40px 24px 56px;
+}
+
+.page-frame {
+  width: min(1120px, 100%);
+  margin: 0 auto;
 }
 
 .upload-panel {
-  width: min(720px, 100%);
-  padding: 52px;
+  width: 100%;
+  padding: 64px clamp(24px, 4vw, 72px);
   border: 1px solid var(--panel-border);
-  border-radius: 32px;
+  border-radius: 36px;
   background:
     linear-gradient(180deg, rgba(255, 252, 246, 0.96), rgba(247, 239, 226, 0.92));
   box-shadow: var(--shadow);
@@ -95,11 +99,18 @@ select {
 }
 
 .page-intro {
-  max-width: 44rem;
+  max-width: 46rem;
   margin: 16px 0 0;
   color: var(--muted);
   line-height: 1.6;
   font-size: 1.05rem;
+}
+
+.upload-lower {
+  width: 100%;
+  display: grid;
+  gap: 28px;
+  margin-top: 36px;
 }
 
 .stage-grid {
@@ -111,10 +122,13 @@ select {
 }
 
 .stage-card {
-  padding: 18px 16px;
+  min-height: 144px;
+  padding: 24px 18px;
   border: 1px solid rgba(110, 82, 55, 0.14);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.55);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.58);
+  display: grid;
+  align-content: center;
   text-align: center;
 }
 
@@ -134,10 +148,20 @@ select {
 
 .upload-form {
   display: grid;
-  gap: 16px;
-  margin-top: 28px;
-  width: 100%;
+  gap: 18px;
+  width: min(760px, 100%);
+  margin: 0 auto;
+  padding: 32px clamp(20px, 3vw, 36px);
+  border: 1px solid rgba(110, 82, 55, 0.14);
+  border-radius: 30px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 22px 44px rgba(79, 52, 30, 0.08);
+}
+
+.upload-form-heading {
+  display: grid;
   justify-items: center;
+  gap: 12px;
 }
 
 .upload-section-label {
@@ -154,6 +178,22 @@ select {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  margin: 0;
+}
+
+.upload-form-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 3.4vw, 2.5rem);
+  line-height: 1;
+}
+
+.upload-form-copy {
+  max-width: 36rem;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+  text-align: center;
 }
 
 .upload-file-row {
@@ -268,12 +308,15 @@ select {
 
 .detail-shell {
   min-height: 100vh;
-  display: grid;
-  gap: 24px;
   padding: 36px 24px 48px;
   background:
     radial-gradient(circle at top right, rgba(36, 22, 13, 0.08), transparent 24%),
     linear-gradient(180deg, rgba(255, 252, 246, 0.7), rgba(231, 221, 207, 0.95));
+}
+
+.detail-page-frame {
+  display: grid;
+  gap: 24px;
 }
 
 .detail-header {
@@ -316,6 +359,12 @@ select {
 .detail-status-panel {
   display: grid;
   gap: 18px;
+}
+
+.conclusion-stack {
+  width: min(980px, 100%);
+  justify-self: center;
+  display: grid;
 }
 
 .detail-copy,
@@ -395,12 +444,16 @@ select {
 }
 
 .state-card {
+  width: 100%;
   padding: 32px;
   border: 1px solid var(--panel-border);
   border-radius: 28px;
   background:
     linear-gradient(180deg, rgba(255, 252, 246, 0.94), rgba(245, 236, 223, 0.92));
   box-shadow: var(--shadow);
+  display: grid;
+  justify-items: center;
+  text-align: center;
 }
 
 .state-card-mark {
@@ -437,10 +490,12 @@ select {
   display: flex;
   align-items: center;
   gap: 16px;
+  width: min(420px, 100%);
   padding: 18px;
   border: 1px solid rgba(110, 82, 55, 0.12);
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.75);
+  text-align: left;
 }
 
 .refresh-circle {
@@ -477,9 +532,11 @@ select {
 
 .error-block {
   margin-top: 24px;
+  width: min(560px, 100%);
   padding: 18px;
   border-radius: 20px;
   background: rgba(180, 79, 43, 0.08);
+  text-align: left;
 }
 
 .detail-card-actions {
@@ -488,6 +545,7 @@ select {
   flex-wrap: wrap;
   gap: 14px;
   align-items: center;
+  justify-content: center;
 }
 
 .detail-link {
@@ -564,6 +622,11 @@ select {
   .state-card {
     padding: 24px;
     border-radius: 20px;
+  }
+
+  .upload-form {
+    padding: 24px 18px;
+    border-radius: 22px;
   }
 
   .conclusion-hero-header,

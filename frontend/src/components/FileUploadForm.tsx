@@ -55,9 +55,13 @@ export function FileUploadForm() {
 
   return (
     <form className="upload-form" onSubmit={handleSubmit}>
-      <label className="upload-section-label" htmlFor="requirements-file">
-        评估文件上传
-      </label>
+      <div className="upload-form-heading">
+        <p className="upload-section-label">评估文件上传</p>
+        <h2 className="upload-form-title">提交需求文档</h2>
+        <p className="upload-form-copy">
+          将正式版本需求文件作为唯一输入提交。平台会创建评估任务，并在结果页持续反馈处理进展与最终结论。
+        </p>
+      </div>
       <div className="upload-file-row">
         <div className="upload-file-name">{selectedFile?.name ?? "请选择待评估文件"}</div>
         <button
@@ -70,6 +74,7 @@ export function FileUploadForm() {
         </button>
         <input
           ref={inputRef}
+          aria-label="评估文件上传"
           id="requirements-file"
           name="file"
           type="file"

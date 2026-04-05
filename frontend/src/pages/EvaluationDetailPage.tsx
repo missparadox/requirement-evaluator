@@ -225,14 +225,18 @@ export function EvaluationDetailPage() {
 
   return (
     <main className="detail-shell">
-      <header className="detail-header">
-        <p className="page-overline">Requirements Evaluation Suite</p>
-        <h1 className="page-title">需求评估结果</h1>
-      </header>
-      <SectionDivider title="任务信息" />
-      <EvaluationStatusPanel evaluationId={evaluationId} evaluation={evaluation ?? null} />
-      <SectionDivider title="评估结论" />
-      {renderStateCard()}
+      <div className="page-frame detail-page-frame">
+        <header className="detail-header">
+          <p className="page-overline">Requirements Evaluation Suite</p>
+          <h1 className="page-title">需求评估结果</h1>
+        </header>
+        <SectionDivider title="任务信息" />
+        <EvaluationStatusPanel evaluationId={evaluationId} evaluation={evaluation ?? null} />
+        <SectionDivider title="评估结论" />
+        <section className="conclusion-stack" aria-label="结果概览">
+          {renderStateCard()}
+        </section>
+      </div>
     </main>
   );
 }
