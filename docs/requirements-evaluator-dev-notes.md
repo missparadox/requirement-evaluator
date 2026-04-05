@@ -166,6 +166,18 @@ Recommended backend flow:
    - final report
    - status and errors
 
+Current runtime selection:
+
+- OpenAI when `OPENAI_API_KEY` is set
+- Zhipu when `ZHIPU_API_KEY` is set and OpenAI is unavailable
+- local Codex CLI when `codex` is available on `PATH` and both API providers are unavailable
+- debug fallback only when `REQUIREMENTS_EVALUATOR_DEBUG_FALLBACK=1`
+- startup failure when none of the above modes is available
+
+Operational note:
+
+- the Codex CLI invocation uses timeout protection so a hung process does not block the evaluation worker indefinitely
+
 ### Suggested API shape
 
 - `POST /api/evaluations`
@@ -221,7 +233,8 @@ Completed decisions:
 - local filesystem artifact storage remains the phase 1 source of truth
 - dedupe is based on input content plus version material
 - SQLite remains deferred for future metadata-only work
-- the static model client remains the safe fallback when production credentials are unavailable
+- runtime selection now follows OpenAI > Zhipu > Codex CLI > debug fallback
+- application startup now fails fast when no supported runtime mode is available
 
 Next recommended steps:
 
@@ -384,7 +397,7 @@ Related commits on the feature branch:
     - `backend/app/services/evaluation_service.py`
     - `backend/tests/test_evaluations_api.py`
 - Task 10 is complete:
-  - model client now supports a configurable OpenAI-backed implementation plus static fallback selection
+  - model client now resolves runtime support in priority order: OpenAI, Zhipu, Codex CLI, then debug fallback
   - Task 10 plan note:
     - `get_settings().model_name` was already implemented before this task, so the Task 10 red step was corrected to cover configurable client selection instead of repeating an existing config behavior
     - backend dependency metadata now includes `openai`

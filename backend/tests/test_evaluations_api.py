@@ -1,11 +1,19 @@
 from fastapi.testclient import TestClient
 
-from app.main import create_app
+from conftest import configure_runtime_env, import_app_main_module
+
+
+def _create_client(tmp_path, monkeypatch) -> TestClient:
+    configure_runtime_env(
+        monkeypatch,
+        data_dir=str(tmp_path),
+        debug_fallback_enabled=True,
+    )
+    return TestClient(import_app_main_module().create_app())
 
 
 def test_post_evaluations_returns_pending_task(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("REQUIREMENTS_EVALUATOR_DATA_DIR", str(tmp_path))
-    client = TestClient(create_app())
+    client = _create_client(tmp_path, monkeypatch)
     response = client.post(
         "/api/evaluations",
         files={
@@ -21,9 +29,7 @@ def test_post_evaluations_returns_pending_task(tmp_path, monkeypatch) -> None:
 
 
 def test_get_evaluation_returns_detail(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("REQUIREMENTS_EVALUATOR_DATA_DIR", str(tmp_path))
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    client = TestClient(create_app())
+    client = _create_client(tmp_path, monkeypatch)
     create = client.post(
         "/api/evaluations",
         files={
@@ -43,8 +49,7 @@ def test_get_evaluation_returns_detail(tmp_path, monkeypatch) -> None:
 
 
 def test_get_evaluation_returns_404_for_missing_id(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("REQUIREMENTS_EVALUATOR_DATA_DIR", str(tmp_path))
-    client = TestClient(create_app())
+    client = _create_client(tmp_path, monkeypatch)
 
     response = client.get("/api/evaluations/eval_missing")
 
@@ -52,8 +57,7 @@ def test_get_evaluation_returns_404_for_missing_id(tmp_path, monkeypatch) -> Non
 
 
 def test_retry_evaluation_creates_new_pending_task(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("REQUIREMENTS_EVALUATOR_DATA_DIR", str(tmp_path))
-    client = TestClient(create_app())
+    client = _create_client(tmp_path, monkeypatch)
 
     create = client.post(
         "/api/evaluations",
@@ -80,8 +84,7 @@ def test_retry_evaluation_creates_new_pending_task(tmp_path, monkeypatch) -> Non
 
 
 def test_retry_evaluation_rejects_non_failed_task(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("REQUIREMENTS_EVALUATOR_DATA_DIR", str(tmp_path))
-    client = TestClient(create_app())
+    client = _create_client(tmp_path, monkeypatch)
 
     create = client.post(
         "/api/evaluations",
