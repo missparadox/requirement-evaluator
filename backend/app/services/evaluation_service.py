@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import uuid4
 
-from app.clients.model_client import model_provider_name
+from app.clients.model_client import resolve_model_runtime
 from app.core.config import get_settings
 from app.core.paths import REPO_ROOT, REPORT_TEMPLATE_FILE, SKILL_FILE
 from app.core.versioning import build_dedupe_key, detect_app_version, sha256_bytes, sha256_file
@@ -23,8 +23,9 @@ class EvaluationService:
     def __init__(self, store) -> None:
         self.store = store
         settings = get_settings()
-        self.model_name = settings.codex_model
-        self.model_provider = model_provider_name()
+        runtime = resolve_model_runtime(settings)
+        self.model_name = runtime.model_name
+        self.model_provider = runtime.provider_name
         self.skill_version = sha256_file(SKILL_FILE)
         self.report_template_version = sha256_file(REPORT_TEMPLATE_FILE)
         self.app_version = detect_app_version(REPO_ROOT)

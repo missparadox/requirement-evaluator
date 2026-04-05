@@ -1,8 +1,9 @@
-import os
 from dataclasses import dataclass
 from typing import Protocol
 
 from openai import OpenAI
+
+from app.core.config import Settings
 
 
 class ModelClient(Protocol):
@@ -40,13 +41,43 @@ class OpenAIModelClient:
         return response.output_text
 
 
-def model_provider_name() -> str:
-    if os.environ.get("OPENAI_API_KEY"):
-        return "openai"
-    return "static"
+@dataclass(frozen=True)
+class ResolvedModelRuntime:
+    provider_name: str
+    model_name: str
+    api_key: str | None = None
+    base_url: str | None = None
 
 
-def build_model_client(model_name: str) -> ModelClient:
-    if model_provider_name() == "openai":
-        return OpenAIModelClient(model_name=model_name, client=OpenAI())
+def resolve_model_runtime(settings: Settings) -> ResolvedModelRuntime:
+    if settings.openai_api_key is not None:
+        return ResolvedModelRuntime(
+            provider_name="openai",
+            model_name=settings.openai_model,
+            api_key=settings.openai_api_key,
+            base_url=settings.openai_base_url,
+        )
+    if settings.zhipu_api_key is not None:
+        return ResolvedModelRuntime(
+            provider_name="zhipu",
+            model_name=settings.zhipu_model,
+            api_key=settings.zhipu_api_key,
+            base_url=settings.zhipu_base_url,
+        )
+    if settings.debug_fallback_enabled:
+        return ResolvedModelRuntime(provider_name="debug", model_name="debug-fallback")
+    return ResolvedModelRuntime(provider_name="static", model_name="static")
+
+
+def model_provider_name(settings: Settings) -> str:
+    return resolve_model_runtime(settings).provider_name
+
+
+def build_model_client(settings: Settings) -> ModelClient:
+    runtime = resolve_model_runtime(settings)
+    if runtime.api_key is not None and runtime.base_url is not None:
+        return OpenAIModelClient(
+            model_name=runtime.model_name,
+            client=OpenAI(api_key=runtime.api_key, base_url=runtime.base_url),
+        )
     return StaticModelClient()
