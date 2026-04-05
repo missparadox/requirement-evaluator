@@ -33,7 +33,7 @@ export function FileUploadForm() {
 
   return (
     <form className="upload-form" onSubmit={handleSubmit}>
-      <label className="sr-only" htmlFor="requirements-file">
+      <label className="upload-section-label" htmlFor="requirements-file">
         评估文件上传
       </label>
       <div className="upload-file-row">
