@@ -1,11 +1,16 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { afterEach } from "vitest";
 import { vi } from "vitest";
 
 import { UploadPage } from "./UploadPage";
 
 
-test("submitting a selected file creates an evaluation and navigates to detail", async () => {
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+test("submitting a selected file posts an evaluation request", async () => {
   const file = new File(["OR需求编号,OR需求名称*,OR需求描述*\nD1,N,D\n"], "requirements.csv", {
     type: "text/csv",
   });
@@ -34,5 +39,12 @@ test("submitting a selected file creates an evaluation and navigates to detail",
 
   await waitFor(() => {
     expect(fetchMock).toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/evaluations",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.any(FormData),
+      }),
+    );
   });
 });
