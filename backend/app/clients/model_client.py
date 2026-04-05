@@ -95,6 +95,14 @@ class ResolvedModelRuntime:
     base_url: str | None = None
 
 
+NO_MODEL_PROVIDER_ERROR_MESSAGE = (
+    "No model provider is available. Checked OPENAI_API_KEY, ZHIPU_API_KEY, "
+    "Codex CLI availability on PATH via `codex`, and "
+    "REQUIREMENTS_EVALUATOR_DEBUG_FALLBACK=1 for local debugging. "
+    "The static placeholder runtime is not valid for application startup."
+)
+
+
 def resolve_model_runtime(settings: Settings) -> ResolvedModelRuntime:
     if settings.openai_api_key is not None:
         return ResolvedModelRuntime(
@@ -118,6 +126,13 @@ def resolve_model_runtime(settings: Settings) -> ResolvedModelRuntime:
     if settings.debug_fallback_enabled:
         return ResolvedModelRuntime(provider_name="debug", model_name="debug-fallback")
     return ResolvedModelRuntime(provider_name="static", model_name="static")
+
+
+def validate_model_runtime_available(settings: Settings) -> ResolvedModelRuntime:
+    runtime = resolve_model_runtime(settings)
+    if runtime.provider_name == "static":
+        raise RuntimeError(NO_MODEL_PROVIDER_ERROR_MESSAGE)
+    return runtime
 
 
 def model_provider_name(settings: Settings) -> str:
