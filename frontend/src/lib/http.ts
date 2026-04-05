@@ -26,3 +26,15 @@ export async function getJson<T>(url: string): Promise<T> {
 
   return response.json() as Promise<T>;
 }
+
+export async function postJson<T>(url: string): Promise<T> {
+  const response = await fetch(url, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw await buildRequestError(response);
+  }
+
+  return response.json() as Promise<T>;
+}

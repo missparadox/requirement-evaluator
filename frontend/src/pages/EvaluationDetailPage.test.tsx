@@ -152,10 +152,10 @@ test("waiting card countdown decreases and uses a waiting indicator", async () =
 });
 
 test("shows failed backend state with retry actions", async () => {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async () => {
-      return new Response(
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValueOnce(
+      new Response(
         JSON.stringify({
           evaluation_id: "eval_123",
           status: "failed",
@@ -172,16 +172,67 @@ test("shows failed backend state with retry actions", async () => {
             "Content-Type": "application/json",
           },
         },
-      );
-    }),
-  );
+      ),
+    )
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          evaluation_id: "eval_456",
+          status: "pending",
+          filename: "requirements.csv",
+          dedupe_hit: false,
+          created_at: "2026-04-05T09:01:00Z",
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      ),
+    )
+    .mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          evaluation_id: "eval_456",
+          status: "pending",
+          filename: "requirements.csv",
+          created_at: "2026-04-05T09:01:00Z",
+          started_at: null,
+          finished_at: null,
+          error_message: null,
+          report_markdown: null,
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      ),
+    );
+  vi.stubGlobal("fetch", fetchMock);
 
   renderEvaluationDetailPage();
 
   expect((await screen.findAllByText("评估失败")).length).toBeGreaterThan(0);
   expect(screen.getByText("后端服务不可用")).toBeInTheDocument();
+  expect(screen.getByText("当前评估未完成结果生成。你可以重新发起评估，或回到上传页重新提交文档。")).toHaveClass("failed-card-copy");
   expect(screen.getByRole("button", { name: "重新发起评估" })).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "回到上传页面" })).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "重新发起评估" }));
+
+  await waitFor(() => {
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/evaluations/eval_123/retry",
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
+  });
+
+  expect(await screen.findByText("评估准备中")).toBeInTheDocument();
 });
 
 test("keeps the page skeleton visible when detail loading fails", async () => {

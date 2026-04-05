@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { EvaluationStatusPanel } from "../components/EvaluationStatusPanel";
 import { ReportViewer } from "../components/ReportViewer";
-import { useEvaluationDetail } from "../features/evaluations/hooks";
+import { useEvaluationDetail, useRetryEvaluation } from "../features/evaluations/hooks";
 import { downloadMarkdown } from "../lib/download";
 
 function SectionDivider({ title }: { title: string }) {
@@ -104,9 +104,11 @@ function WaitingStateCard({ status }: { status: "pending" | "running" }) {
 
 function FailedStateCard({
   errorMessage,
+  isRetrying,
   onRetry,
 }: {
   errorMessage: string;
+  isRetrying: boolean;
   onRetry: () => void;
 }) {
   return (
@@ -116,16 +118,16 @@ function FailedStateCard({
       </div>
       <p className="state-card-label">状态</p>
       <h2 className="detail-card-title">评估失败</h2>
-      <p className="detail-copy">
-        当前评估任务未能完成结果生成。你可以重新发起评估，或返回首页重新提交文档。
+      <p className="detail-copy failed-card-copy">
+        当前评估未完成结果生成。你可以重新发起评估，或回到上传页重新提交文档。
       </p>
       <div className="error-block">
         <p className="error-block-label">异常说明</p>
         <p>{errorMessage}</p>
       </div>
       <div className="detail-card-actions">
-        <button className="upload-primary-button" type="button" onClick={onRetry}>
-          重新发起评估
+        <button className="upload-primary-button" type="button" onClick={onRetry} disabled={isRetrying}>
+          {isRetrying ? "重新发起中..." : "重新发起评估"}
         </button>
         <Link className="detail-link" to="/">
           回到上传页面
@@ -210,6 +212,7 @@ export function EvaluationDetailPage() {
   const { evaluationId } = useParams();
   const navigate = useNavigate();
   const evaluationDetailQuery = useEvaluationDetail(evaluationId);
+  const retryEvaluationMutation = useRetryEvaluation();
   const evaluation = evaluationDetailQuery.data;
   const markdown =
     evaluation?.report_markdown ?? `# Evaluation ${evaluationId ?? "unknown"}\n\nReport pending.`;
@@ -221,7 +224,13 @@ export function EvaluationDetailPage() {
           ? evaluationDetailQuery.error.message
           : "评估状态获取失败，请稍后重试。";
 
-      return <FailedStateCard errorMessage={errorMessage} onRetry={() => navigate("/")} />;
+      return (
+        <FailedStateCard
+          errorMessage={errorMessage}
+          isRetrying={false}
+          onRetry={() => navigate("/")}
+        />
+      );
     }
 
     if (!evaluation || evaluation.status === "pending") {
@@ -236,7 +245,18 @@ export function EvaluationDetailPage() {
       return (
         <FailedStateCard
           errorMessage={evaluation.error_message ?? "评估执行失败，请重新发起任务。"}
-          onRetry={() => navigate("/")}
+          isRetrying={retryEvaluationMutation.isPending}
+          onRetry={() => {
+            if (!evaluation?.evaluation_id) {
+              return;
+            }
+
+            retryEvaluationMutation.mutate(evaluation.evaluation_id, {
+              onSuccess: (result) => {
+                navigate(`/evaluations/${result.evaluation_id}`);
+              },
+            });
+          }}
         />
       );
     }

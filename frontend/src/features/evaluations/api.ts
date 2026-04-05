@@ -1,5 +1,5 @@
 import type { CreateEvaluationResponse, EvaluationDetailResponse } from "./types";
-import { getJson, postForm } from "../../lib/http";
+import { getJson, postForm, postJson } from "../../lib/http";
 
 export function createEvaluation(file: File): Promise<CreateEvaluationResponse> {
   const formData = new FormData();
@@ -9,4 +9,8 @@ export function createEvaluation(file: File): Promise<CreateEvaluationResponse> 
 
 export function getEvaluationDetail(evaluationId: string): Promise<EvaluationDetailResponse> {
   return getJson<EvaluationDetailResponse>(`/api/evaluations/${evaluationId}`);
+}
+
+export function retryEvaluation(evaluationId: string): Promise<CreateEvaluationResponse> {
+  return postJson<CreateEvaluationResponse>(`/api/evaluations/${evaluationId}/retry`);
 }

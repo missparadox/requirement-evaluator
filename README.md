@@ -132,6 +132,7 @@ Current HTTP endpoints:
 
 - `POST /api/evaluations`
 - `GET /api/evaluations/{evaluation_id}`
+- `POST /api/evaluations/{evaluation_id}/retry`
 
 ## Local Artifact Storage Behavior
 

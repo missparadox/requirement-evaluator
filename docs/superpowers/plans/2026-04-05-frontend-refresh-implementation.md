@@ -26,6 +26,10 @@
 - Modify: `frontend/src/features/evaluations/hooks.ts`
 - Modify: `frontend/src/lib/http.ts`
 - Modify: `frontend/src/styles/global.css`
+- Modify: `backend/app/api/routes/evaluations.py`
+- Modify: `backend/app/services/evaluation_service.py`
+- Modify: `backend/app/storage/evaluation_store.py`
+- Modify: `backend/tests/test_evaluations_api.py`
 - Modify: `docs/requirements-evaluator-dev-notes.md`
 
 ### Responsibilities
@@ -40,6 +44,14 @@
   define typed request and response contracts used across the frontend
 - `frontend/src/features/evaluations/hooks.ts`
   provide create mutation, detail query, and polling behavior
+- `backend/app/api/routes/evaluations.py`
+  expose evaluation create, detail, and retry endpoints
+- `backend/app/services/evaluation_service.py`
+  enforce retry eligibility and create a fresh task from failed evaluations only
+- `backend/app/storage/evaluation_store.py`
+  read back the original uploaded file when retrying a failed evaluation
+- `backend/tests/test_evaluations_api.py`
+  verify retry endpoint success and non-failed rejection behavior
 - `frontend/src/pages/EvaluationDetailPage.tsx`
   render the approved result-page structure and switch among waiting/success/failed states
 - `frontend/src/components/EvaluationStatusPanel.tsx`
@@ -52,6 +64,27 @@
   encode the approved premium page system, section dividers, cards, waiting card, failed card, and result layout
 - `docs/requirements-evaluator-dev-notes.md`
   record implementation progress and review outcomes
+
+## Follow-up Update: Failed-State Retry API
+
+After the original refresh plan was approved and implemented, the failed-state interaction was tightened:
+
+- `重新发起评估` must no longer redirect to the upload page as its primary action
+- the failed detail page must directly trigger a backend retry request
+- only evaluations in `failed` status may retry successfully
+- a successful retry must navigate to a newly created detail route and re-enter the waiting flow
+
+Additional endpoint:
+
+- `POST /api/evaluations/{evaluation_id}/retry`
+
+Implementation impact:
+
+- add a backend retry endpoint that reloads the original uploaded file from storage and creates a fresh task
+- reject retry calls for `pending`, `running`, and `succeeded` evaluations with conflict semantics
+- add a frontend retry request helper and mutation hook
+- update the failed state card so retry stays inside the detail-page flow
+- keep the secondary `回到上传页面` action as the explicit navigation exit
 
 ## Task 1: Wire Real Evaluation API Types and HTTP Helpers
 
@@ -414,7 +447,7 @@ test("detail page renders the shared waiting card for running state", async () =
 
   await waitFor(() => {
     expect(screen.getByText("评估进行中")).toBeInTheDocument();
-    expect(screen.getByText("系统将在 20 秒后刷新最新状态")).toBeInTheDocument();
+    expect(screen.getByText("系统将在 30 秒后刷新最新状态")).toBeInTheDocument();
   });
 });
 
@@ -442,7 +475,7 @@ test("detail page renders failed recovery actions", async () => {
   await waitFor(() => {
     expect(screen.getByText("评估失败")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "重新发起评估" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "返回首页" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "回到上传页面" })).toBeInTheDocument();
   });
 });
 ```
@@ -460,19 +493,19 @@ function renderWaitingCard(status: "pending" | "running") {
   const message =
     status === "pending"
       ? "评估任务已创建，系统正在准备分析所需内容。结果将自动刷新，请稍候。"
-      : "平台正在基于当前文档执行结构化分析与模型评估，结果将在处理完成后自动同步至页面。";
+      : "评估依赖模型处理，系统正在生成分析结果。页面将每 30 秒自动刷新，请耐心等待。";
 
   return (
     <section className="state-card waiting-card">
-      <div className="state-card-mark" aria-hidden="true">◌</div>
-      <p className="state-card-label">Status</p>
+      <div className="state-card-mark" aria-hidden="true">...</div>
+      <p className="state-card-label">状态</p>
       <h2>{title}</h2>
       <p>{message}</p>
       <div className="refresh-inline-card">
-        <div className="refresh-circle">20s</div>
+        <div className="refresh-circle">30s</div>
         <div>
           <p className="refresh-inline-title">状态刷新</p>
-          <p>系统将在 20 秒后刷新最新状态</p>
+          <p>系统将在 30 秒后刷新最新状态</p>
         </div>
       </div>
     </section>
@@ -484,12 +517,16 @@ function renderFailedCard(errorMessage: string | null) {
   return (
     <section className="state-card failed-card">
       <div className="state-card-mark" aria-hidden="true">!</div>
-      <p className="state-card-label">Status</p>
+      <p className="state-card-label">状态</p>
       <h2>评估失败</h2>
       <p>当前评估任务未能完成结果生成。你可以重新发起评估，或返回首页重新提交文档。</p>
       <div className="error-block">
         <p className="error-block-label">异常说明</p>
         <p>{errorMessage ?? "系统在评估处理过程中发生异常，未能产出最终报告。"}</p>
+      </div>
+      <div className="detail-card-actions">
+        <button type="button" className="upload-primary-button">重新发起评估</button>
+        <Link className="detail-link" to="/">回到上传页面</Link>
       </div>
     </section>
   );

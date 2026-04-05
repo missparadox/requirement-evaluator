@@ -49,3 +49,52 @@ def test_get_evaluation_returns_404_for_missing_id(tmp_path, monkeypatch) -> Non
     response = client.get("/api/evaluations/eval_missing")
 
     assert response.status_code == 404
+
+
+def test_retry_evaluation_creates_new_pending_task(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("REQUIREMENTS_EVALUATOR_DATA_DIR", str(tmp_path))
+    client = TestClient(create_app())
+
+    create = client.post(
+        "/api/evaluations",
+        files={
+            "file": (
+                "requirements.csv",
+                "OR需求编号,OR需求名称*,OR需求描述*\nD1,N,D\n".encode("utf-8"),
+                "text/csv",
+            )
+        },
+    )
+    original_evaluation_id = create.json()["evaluation_id"]
+    metadata_path = tmp_path / "evaluations" / original_evaluation_id / "metadata.json"
+    metadata = __import__("json").loads(metadata_path.read_text(encoding="utf-8"))
+    metadata["status"] = "failed"
+    metadata["error_message"] = "forced failure"
+    metadata_path.write_text(__import__("json").dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    retry = client.post(f"/api/evaluations/{original_evaluation_id}/retry")
+
+    assert retry.status_code == 200
+    assert retry.json()["evaluation_id"] != original_evaluation_id
+    assert retry.json()["status"] in {"pending", "succeeded"}
+
+
+def test_retry_evaluation_rejects_non_failed_task(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("REQUIREMENTS_EVALUATOR_DATA_DIR", str(tmp_path))
+    client = TestClient(create_app())
+
+    create = client.post(
+        "/api/evaluations",
+        files={
+            "file": (
+                "requirements.csv",
+                "OR需求编号,OR需求名称*,OR需求描述*\nD1,N,D\n".encode("utf-8"),
+                "text/csv",
+            )
+        },
+    )
+    evaluation_id = create.json()["evaluation_id"]
+
+    retry = client.post(f"/api/evaluations/{evaluation_id}/retry")
+
+    assert retry.status_code == 409

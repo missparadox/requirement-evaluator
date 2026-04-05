@@ -89,7 +89,7 @@ Approved state-specific copy:
 #### Running
 
 - title: `评估进行中`
-- message: `评估依赖模型处理，系统正在生成分析结果。页面将每 20 秒自动刷新，请耐心等待。`
+- message: `评估依赖模型处理，系统正在生成分析结果。页面将每 30 秒自动刷新，请耐心等待。`
 
 The message may mention the current state, but the layout must remain the same.
 
@@ -119,7 +119,7 @@ This card should feel calm and premium rather than technical or dashboard-like.
 
 The detail page polls every:
 
-- `20s`
+- `30s`
 
 Polling starts when the page is in:
 
@@ -223,6 +223,20 @@ The failure card should remain formal and product-oriented. It should explain th
 
 `重新发起评估` should clearly represent a fresh evaluation action.
 
+Approved behavior:
+
+- it does not navigate the user back to the upload page first
+- it sends a retry request from the detail page context
+- it is only valid for evaluations whose current backend status is `failed`
+- on success, the frontend navigates directly to the newly created evaluation detail route
+- the page then re-enters the waiting state flow with the same stable result-page skeleton
+
+Approved backend integration:
+
+- `POST /api/evaluations/{evaluation_id}/retry`
+
+The retry endpoint creates a new evaluation task from the original uploaded file associated with the failed task. It must reject non-failed tasks rather than silently reusing or restarting active/completed work.
+
 `回到上传页面` should navigate the user back to the homepage upload screen.
 
 ## Content Stability Rules
@@ -259,11 +273,16 @@ Reason:
 
 ## Final Approved Decisions
 
+- the detail page polls every `30s`
+- the waiting card countdown reflects the active polling interval
+- the waiting card uses an explicit waiting indicator rather than an ambiguous decorative mark
+- `重新发起评估` calls a dedicated retry API from the failed detail page
+- only `failed` evaluations are allowed to use the retry API successfully
+
 - initial visible state after task creation is `评估准备中`
 - `pending` and `running` use the same waiting-card layout
 - waiting-card copy changes with the current state
 - the waiting card integrates the countdown module inside the card
-- the detail page polls every `20s`
 - polling stops on `succeeded` or `failed`
 - pending/running do not expand report modules
 - success content reveals in four layers

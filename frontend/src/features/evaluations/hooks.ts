@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 
-import { createEvaluation, getEvaluationDetail } from "./api";
+import { createEvaluation, getEvaluationDetail, retryEvaluation } from "./api";
 
 const DETAIL_POLL_INTERVAL_MS = 30_000;
 
@@ -19,5 +19,11 @@ export function useEvaluationDetail(evaluationId: string | undefined) {
       const status = query.state.data?.status;
       return status === "pending" || status === "running" ? DETAIL_POLL_INTERVAL_MS : false;
     },
+  });
+}
+
+export function useRetryEvaluation() {
+  return useMutation({
+    mutationFn: retryEvaluation,
   });
 }

@@ -92,3 +92,10 @@ class EvaluationService:
 
     def get_detail(self, evaluation_id: str) -> EvaluationDetail:
         return self.store.read_detail(evaluation_id)
+
+    def retry(self, evaluation_id: str) -> CreateEvaluationResult:
+        metadata = self.store.read_metadata(evaluation_id)
+        if metadata.get("status") != "failed":
+            raise ValueError("Only failed evaluations can be retried.")
+        file_bytes = self.store.read_original_file_bytes(evaluation_id)
+        return self.create_or_reuse(filename=metadata["filename"], file_bytes=file_bytes)

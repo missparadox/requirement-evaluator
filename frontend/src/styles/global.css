@@ -544,9 +544,13 @@ select {
   border-color: rgba(180, 79, 43, 0.16);
 }
 
+.failed-card-copy {
+  width: min(640px, 100%);
+}
+
 .error-block {
   margin-top: 24px;
-  width: min(560px, 100%);
+  width: min(640px, 100%);
   padding: 18px;
   border-radius: 20px;
   background: rgba(180, 79, 43, 0.08);

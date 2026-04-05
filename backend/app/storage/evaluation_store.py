@@ -42,6 +42,11 @@ class EvaluationStore:
     def read_metadata(self, evaluation_id: str) -> dict[str, Any]:
         return json.loads(self.metadata_path(evaluation_id).read_text(encoding="utf-8"))
 
+    def read_original_file_bytes(self, evaluation_id: str) -> bytes:
+        metadata = self.read_metadata(evaluation_id)
+        original_file_path = self.evaluation_dir(evaluation_id) / metadata["filename"]
+        return original_file_path.read_bytes()
+
     def update_metadata(self, evaluation_id: str, patch: dict[str, Any]) -> dict[str, Any]:
         metadata = self.read_metadata(evaluation_id)
         metadata.update(patch)

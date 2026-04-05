@@ -19,6 +19,7 @@ def test_dedupe_key_changes_when_model_changes() -> None:
         skill_version="skill",
         report_template_version="template",
         model_name="gpt-5.4",
+        model_provider="openai",
         app_version="commit-a",
     )
     second = build_dedupe_key(
@@ -26,6 +27,7 @@ def test_dedupe_key_changes_when_model_changes() -> None:
         skill_version="skill",
         report_template_version="template",
         model_name="gpt-5.4-mini",
+        model_provider="openai",
         app_version="commit-a",
     )
     assert first != second
