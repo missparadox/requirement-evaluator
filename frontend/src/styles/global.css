@@ -93,21 +93,22 @@ select {
 .page-title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(2.7rem, 6vw, 4.6rem);
+  font-size: clamp(2.3rem, 5vw, 3.9rem);
   line-height: 0.95;
   letter-spacing: -0.04em;
 }
 
 .page-intro {
-  max-width: 46rem;
+  max-width: 40rem;
   margin: 16px 0 0;
   color: var(--muted);
   line-height: 1.6;
-  font-size: 1.05rem;
+  font-size: 1rem;
+  text-wrap: balance;
 }
 
 .upload-lower {
-  width: 100%;
+  width: min(760px, 100%);
   display: grid;
   gap: 28px;
   margin-top: 36px;
@@ -149,8 +150,8 @@ select {
 .upload-form {
   display: grid;
   gap: 18px;
-  width: min(760px, 100%);
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
   padding: 32px clamp(20px, 3vw, 36px);
   border: 1px solid rgba(110, 82, 55, 0.14);
   border-radius: 30px;
@@ -161,7 +162,7 @@ select {
 .upload-form-heading {
   display: grid;
   justify-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .upload-section-label {
@@ -184,28 +185,20 @@ select {
 .upload-form-title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(1.8rem, 3.4vw, 2.5rem);
+  font-size: clamp(1.65rem, 3vw, 2.2rem);
   line-height: 1;
-}
-
-.upload-form-copy {
-  max-width: 36rem;
-  margin: 0;
-  color: var(--muted);
-  line-height: 1.65;
-  text-align: center;
 }
 
 .upload-file-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr) 148px;
+  gap: 14px;
+  align-items: stretch;
   width: 100%;
 }
 
 .upload-file-name {
-  min-height: 54px;
+  min-height: 58px;
   display: flex;
   align-items: center;
   padding: 14px 18px;
@@ -214,6 +207,7 @@ select {
   background: rgba(255, 255, 255, 0.72);
   color: var(--muted);
   font-size: 0.95rem;
+  text-align: left;
 }
 
 .upload-file-row input[type="file"] {
@@ -276,11 +270,16 @@ select {
 
 .upload-help {
   margin: 0;
-  max-width: 44rem;
+  max-width: 100%;
   color: var(--muted);
   line-height: 1.6;
-  font-size: 0.95rem;
-  text-align: center;
+  font-size: 0.92rem;
+  text-align: left;
+}
+
+.upload-submit-row {
+  display: flex;
+  justify-content: center;
 }
 
 .upload-error {
@@ -361,10 +360,14 @@ select {
   gap: 18px;
 }
 
-.conclusion-stack {
+.detail-page-section {
   width: min(980px, 100%);
   justify-self: center;
   display: grid;
+}
+
+.conclusion-stack {
+  gap: 18px;
 }
 
 .detail-copy,
@@ -407,6 +410,7 @@ select {
 .conclusion-hero-card {
   display: grid;
   gap: 18px;
+  height: 100%;
 }
 
 .result-overview-grid {
@@ -414,6 +418,7 @@ select {
   grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.9fr);
   gap: 16px;
   align-items: stretch;
+  width: 100%;
 }
 
 .conclusion-hero-header {
@@ -427,6 +432,13 @@ select {
   display: grid;
   grid-template-columns: 1fr;
   gap: 16px;
+  height: 100%;
+}
+
+.result-metric-card {
+  display: grid;
+  align-content: center;
+  text-align: center;
 }
 
 .result-metric-card p {
@@ -566,12 +578,14 @@ select {
 .report-viewer {
   display: grid;
   gap: 18px;
+  width: 100%;
 }
 
 .detail-secondary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
+  align-items: stretch;
 }
 
 .result-section-card,
@@ -579,6 +593,10 @@ select {
 .result-summary-card {
   display: grid;
   gap: 12px;
+}
+
+.result-section-card {
+  align-content: start;
 }
 
 .result-section-title {
@@ -611,6 +629,10 @@ select {
   .upload-primary-button,
   .upload-secondary-button {
     width: 100%;
+  }
+
+  .upload-help {
+    text-align: center;
   }
 
   .detail-shell {

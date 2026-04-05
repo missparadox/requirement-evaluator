@@ -58,9 +58,6 @@ export function FileUploadForm() {
       <div className="upload-form-heading">
         <p className="upload-section-label">评估文件上传</p>
         <h2 className="upload-form-title">提交需求文档</h2>
-        <p className="upload-form-copy">
-          将正式版本需求文件作为唯一输入提交。平台会创建评估任务，并在结果页持续反馈处理进展与最终结论。
-        </p>
       </div>
       <div className="upload-file-row">
         <div className="upload-file-name">{selectedFile?.name ?? "请选择待评估文件"}</div>
@@ -85,9 +82,11 @@ export function FileUploadForm() {
       <p className="upload-help">
         支持 CSV、Excel 与 JSON 格式。文件提交后，平台将立即创建评估任务并启动处理流程。
       </p>
-      <button className="upload-primary-button" type="submit" disabled={isSubmitting}>
-        {isSubmitting ? "提交中..." : "开始评估"}
-      </button>
+      <div className="upload-submit-row">
+        <button className="upload-primary-button" type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "提交中..." : "开始评估"}
+        </button>
+      </div>
       {error ? <p className="upload-error">{error}</p> : null}
     </form>
   );

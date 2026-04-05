@@ -53,6 +53,8 @@ test("submitting a selected file posts an evaluation request", async () => {
   expect(screen.getByText("阶段 02")).toBeInTheDocument();
   expect(screen.getByText("阶段 03")).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "提交需求文档" })).toBeInTheDocument();
+  expect(screen.getByText("支持 CSV、Excel 与 JSON 格式。文件提交后，平台将立即创建评估任务并启动处理流程。")).toBeInTheDocument();
+  expect(screen.queryByText("将正式版本需求文件作为唯一输入提交。平台会创建评估任务，并在结果页持续反馈处理进展与最终结论。")).not.toBeInTheDocument();
   expect(screen.getByText("评估文件上传")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "选择文件" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "开始评估" })).toBeInTheDocument();

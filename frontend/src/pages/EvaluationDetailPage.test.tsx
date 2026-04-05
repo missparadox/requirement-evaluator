@@ -69,6 +69,8 @@ test("shows pending backend state for a pending evaluation", async () => {
   expect(screen.getByText("任务信息")).toBeInTheDocument();
   expect(screen.getByText("评估结论")).toBeInTheDocument();
   expect(screen.getByRole("region", { name: "结果概览" })).toBeInTheDocument();
+  expect(screen.getByRole("region", { name: "任务信息概览" })).toHaveClass("detail-page-section");
+  expect(screen.getByRole("region", { name: "结果概览" })).toHaveClass("detail-page-section");
   expect(screen.getByText("评估编号")).toBeInTheDocument();
   expect(screen.getByText("文件名称")).toBeInTheDocument();
   expect(screen.getByText("任务状态")).toBeInTheDocument();

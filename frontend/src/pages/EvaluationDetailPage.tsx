@@ -231,9 +231,11 @@ export function EvaluationDetailPage() {
           <h1 className="page-title">需求评估结果</h1>
         </header>
         <SectionDivider title="任务信息" />
-        <EvaluationStatusPanel evaluationId={evaluationId} evaluation={evaluation ?? null} />
+        <section className="detail-page-section" aria-label="任务信息概览">
+          <EvaluationStatusPanel evaluationId={evaluationId} evaluation={evaluation ?? null} />
+        </section>
         <SectionDivider title="评估结论" />
-        <section className="conclusion-stack" aria-label="结果概览">
+        <section className="detail-page-section conclusion-stack" aria-label="结果概览">
           {renderStateCard()}
         </section>
       </div>
