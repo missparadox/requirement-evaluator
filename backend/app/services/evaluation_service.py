@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import uuid4
 
+from app.clients.model_client import model_provider_name
 from app.core.config import get_settings
 from app.core.paths import REPO_ROOT, REPORT_TEMPLATE_FILE, SKILL_FILE
 from app.core.versioning import build_dedupe_key, detect_app_version, sha256_bytes, sha256_file
@@ -23,6 +24,7 @@ class EvaluationService:
         self.store = store
         settings = get_settings()
         self.model_name = settings.model_name
+        self.model_provider = model_provider_name()
         self.skill_version = sha256_file(SKILL_FILE)
         self.report_template_version = sha256_file(REPORT_TEMPLATE_FILE)
         self.app_version = detect_app_version(REPO_ROOT)
@@ -34,6 +36,7 @@ class EvaluationService:
             skill_version=self.skill_version,
             report_template_version=self.report_template_version,
             model_name=self.model_name,
+            model_provider=self.model_provider,
             app_version=self.app_version,
         )
         reusable_metadata = self._find_reusable_metadata(dedupe_key)
@@ -59,6 +62,7 @@ class EvaluationService:
                 "skill_version": self.skill_version,
                 "report_template_version": self.report_template_version,
                 "model_name": self.model_name,
+                "model_provider": self.model_provider,
                 "app_version": self.app_version,
                 "dedupe_key": dedupe_key,
             },

@@ -36,9 +36,17 @@ def build_dedupe_key(
     skill_version: str,
     report_template_version: str,
     model_name: str,
+    model_provider: str,
     app_version: str,
 ) -> str:
     material = "|".join(
-        [input_fingerprint, skill_version, report_template_version, model_name, app_version]
+        [
+            input_fingerprint,
+            skill_version,
+            report_template_version,
+            model_name,
+            model_provider,
+            app_version,
+        ]
     )
     return sha256_text(material)

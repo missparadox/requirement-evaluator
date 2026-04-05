@@ -95,13 +95,28 @@ Backend configuration currently uses these environment variables:
 - `REQUIREMENTS_EVALUATOR_MODEL`
   model name used by the configurable model client; defaults to `gpt-5.4`
 - `OPENAI_API_KEY`
-  when present, the backend can build the OpenAI-backed model client instead of the static fallback client
+  when present, the backend builds the OpenAI-backed model client and calls the OpenAI Responses API
+
+Current backend behavior:
+
+- if `OPENAI_API_KEY` is not set, the backend uses a static fallback client and generated reports will contain mock Markdown instead of a real evaluation result
+- if `OPENAI_API_KEY` is set, the backend sends the generated review packet to OpenAI and stores the returned Markdown report
+- if you change `OPENAI_API_KEY` or switch between the static fallback and OpenAI-backed client, submit the file again after restarting the backend so the new provider is used for subsequent evaluations
+
+Example backend environment setup for real OpenAI-backed evaluations:
+
+```bash
+export OPENAI_API_KEY=your-api-key
+export REQUIREMENTS_EVALUATOR_MODEL=gpt-5.4
+```
 
 ## Running the Service
 
 Start the backend in one terminal:
 
 ```bash
+export OPENAI_API_KEY=your-api-key
+export REQUIREMENTS_EVALUATOR_MODEL=gpt-5.4
 cd backend
 ../.venv/bin/python -m uvicorn app.main:app --reload
 ```
@@ -135,9 +150,12 @@ Dedupe behavior is based on:
 - skill version
 - report template version
 - model name
+- model provider (`static` fallback vs `openai`)
 - app version
 
 Matching `pending`, `running`, and `succeeded` tasks are reusable. Matching `failed` tasks are not reused.
+
+Because the provider is part of the dedupe key, a file previously evaluated with the static fallback client will be submitted as a new task after you enable `OPENAI_API_KEY` and restart the backend.
 
 ## Standalone Skill Mode
 

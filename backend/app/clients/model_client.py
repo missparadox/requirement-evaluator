@@ -20,20 +20,33 @@ class OpenAIModelClient:
     client: OpenAI
 
     def generate_report(self, *, skill_text: str, template_text: str, packet_text: str) -> str:
-        prompt = (
-            "Use the requirement evaluation rubric and template below.\n\n"
-            f"[SKILL]\n{skill_text}\n\n"
-            f"[TEMPLATE]\n{template_text}\n\n"
-            f"[PACKET]\n{packet_text}\n"
-        )
         response = self.client.responses.create(
             model=self.model_name,
-            input=prompt,
+            instructions=(
+                "You are a requirements evaluation assistant. "
+                "Follow the rubric and produce the final answer in Chinese Markdown using the template."
+            ),
+            input=(
+                "[SKILL]\n"
+                f"{skill_text}\n\n"
+                "[TEMPLATE]\n"
+                f"{template_text}\n\n"
+                "[PACKET]\n"
+                f"{packet_text}\n"
+            ),
         )
+        if not response.output_text:
+            raise RuntimeError("OpenAI response did not contain output_text.")
         return response.output_text
 
 
-def build_model_client(model_name: str) -> ModelClient:
+def model_provider_name() -> str:
     if os.environ.get("OPENAI_API_KEY"):
+        return "openai"
+    return "static"
+
+
+def build_model_client(model_name: str) -> ModelClient:
+    if model_provider_name() == "openai":
         return OpenAIModelClient(model_name=model_name, client=OpenAI())
     return StaticModelClient()
