@@ -92,22 +92,38 @@ Backend configuration currently uses these environment variables:
 
 - `REQUIREMENTS_EVALUATOR_DATA_DIR`
   local directory for runtime artifacts; defaults to `<repo>/data`
-- `REQUIREMENTS_EVALUATOR_MODEL`
-  model name used by the configurable model client; defaults to `gpt-5.4`
 - `OPENAI_API_KEY`
   when present, the backend builds the OpenAI-backed model client and calls the OpenAI Responses API
+- `OPENAI_MODEL`
+  OpenAI model name; defaults to `gpt-5.4`
+- `OPENAI_BASE_URL`
+  OpenAI API base URL; defaults to `https://api.openai.com/v1`
+- `ZHIPU_API_KEY`
+  when present and OpenAI is unavailable, the backend builds the Zhipu-backed model client
+- `ZHIPU_MODEL`
+  Zhipu model name; defaults to `glm-5`
+- `ZHIPU_BASE_URL`
+  Zhipu API base URL; defaults to `https://open.bigmodel.cn/api/paas/v4`
+- `CODEX_MODEL`
+  Codex CLI model name; defaults to `gpt-5.4`
+- `REQUIREMENTS_EVALUATOR_DEBUG_FALLBACK`
+  set to `1` to enable the local debug fallback mode
 
 Current backend behavior:
 
-- if `OPENAI_API_KEY` is not set, the backend uses a static fallback client and generated reports will contain mock Markdown instead of a real evaluation result
-- if `OPENAI_API_KEY` is set, the backend sends the generated review packet to OpenAI and stores the returned Markdown report
-- if you change `OPENAI_API_KEY` or switch between the static fallback and OpenAI-backed client, submit the file again after restarting the backend so the new provider is used for subsequent evaluations
+- runtime priority is `OPENAI_API_KEY` first, then `ZHIPU_API_KEY`, then local `codex` on `PATH`, then `REQUIREMENTS_EVALUATOR_DEBUG_FALLBACK=1`
+- if none of those modes is available, backend startup fails fast instead of silently falling back to a placeholder runtime
+- OpenAI uses `OPENAI_MODEL` and `OPENAI_BASE_URL`, which default to `gpt-5.4` and `https://api.openai.com/v1`
+- Zhipu uses `ZHIPU_MODEL` and `ZHIPU_BASE_URL`, which default to `glm-5` and `https://open.bigmodel.cn/api/paas/v4`
+- Codex CLI uses `CODEX_MODEL`, which defaults to `gpt-5.4`, and the exec call has timeout protection
+- the debug fallback is only enabled when `REQUIREMENTS_EVALUATOR_DEBUG_FALLBACK=1`
 
 Example backend environment setup for real OpenAI-backed evaluations:
 
 ```bash
 export OPENAI_API_KEY=your-api-key
-export REQUIREMENTS_EVALUATOR_MODEL=gpt-5.4
+export OPENAI_MODEL=gpt-5.4
+export OPENAI_BASE_URL=https://api.openai.com/v1
 ```
 
 ## Running the Service
@@ -116,7 +132,8 @@ Start the backend in one terminal:
 
 ```bash
 export OPENAI_API_KEY=your-api-key
-export REQUIREMENTS_EVALUATOR_MODEL=gpt-5.4
+export OPENAI_MODEL=gpt-5.4
+export OPENAI_BASE_URL=https://api.openai.com/v1
 cd backend
 ../.venv/bin/python -m uvicorn app.main:app --reload
 ```
@@ -151,12 +168,10 @@ Dedupe behavior is based on:
 - skill version
 - report template version
 - model name
-- model provider (`static` fallback vs `openai`)
+- model provider (`openai`, `zhipu`, `codex`, or `debug`)
 - app version
 
 Matching `pending`, `running`, and `succeeded` tasks are reusable. Matching `failed` tasks are not reused.
-
-Because the provider is part of the dedupe key, a file previously evaluated with the static fallback client will be submitted as a new task after you enable `OPENAI_API_KEY` and restart the backend.
 
 ## Standalone Skill Mode
 
