@@ -495,18 +495,23 @@ Related commits on the feature branch:
 
 ### Next recommended steps
 
-After Task 16, the implementation plan is complete. Recommended follow-up work is now post-plan hardening:
+After the original implementation plan, the current follow-up work has moved into a frontend refresh stream driven by new design and interaction specs.
 
-- replace the placeholder frontend upload/detail data flow with real API mutation and polling hooks
-- tighten production model client prompt shaping and credential validation
-- decide how to integrate the finished branch
+Recommended next steps:
+
+- continue `docs/superpowers/plans/2026-04-05-frontend-refresh-implementation.md`
+- implement Task 3 next:
+  - real detail query hooks
+  - 20-second polling
+  - live status synchronization between `任务信息` and `评估结论`
+- then continue Task 4 and Task 5 for waiting, failed, and succeeded detail-page states
 
 ### Controller Summary
 
 Use this section as the short resume point for future sessions:
 
 - branch:
-  - `feature/requirements-evaluator-service`
+  - `master`
 - completed tasks:
   - Task 1
   - Task 2
@@ -524,6 +529,31 @@ Use this section as the short resume point for future sessions:
   - Task 14
   - Task 15
   - Task 16
+- completed follow-up frontend design docs:
+  - `ab86975` for upload page design spec
+  - `d25ebf3` for frontend pages design spec
+  - `b684c5f`, `5a73ae1`, `e25c0e3`, `fda28c6` for detail page interaction and state-card spec refinements
+- completed follow-up implementation planning:
+  - `a2b1760` for frontend refresh implementation plan
+- completed follow-up implementation work:
+  - Task 1 of `2026-04-05-frontend-refresh-implementation.md`
+    - commits:
+      - `e44d57a`
+      - `bcb51e2`
+      - `c3717e7`
+    - final review state:
+      - spec compliance approved
+      - code quality approved
+  - Task 2 of `2026-04-05-frontend-refresh-implementation.md`
+    - commits:
+      - `45b198d`
+      - `373e71e`
+      - `c8a9e9a`
+      - `b1f3cab`
+      - `77136d2`
+    - final review state:
+      - spec compliance approved
+      - code quality still in progress; latest reviewer concern was about making the duplicate-submit test prove the same-tick race window, and the latest implementer patch (`77136d2`) addresses that exact point but has not yet been re-reviewed in this log section
 - latest task-completion commits:
   - `8feecf6` for Task 2 hardening
   - `a867a50` for Task 3 hardening
@@ -540,6 +570,12 @@ Use this section as the short resume point for future sessions:
   - `9602959` for Task 14
   - `075eef7` for Task 15
 - current working state:
-  - Task 16 README is ready to commit
+  - frontend refresh planning and design docs are committed on `master`
+  - Task 1 is fully complete
+  - Task 2 implementation is complete and spec-approved
+  - Task 2 latest code-quality reviewer concern targeted the duplicate-submit race test only
+  - latest implementer fix for that concern is `77136d2`
+  - review should resume from final Task 2 code-quality re-review before moving to Task 3
 - next task:
-  - finish the development branch or open a follow-up plan for post-plan hardening
+  - finish Task 2 final code-quality re-review
+  - if approved, proceed to Task 3 in `2026-04-05-frontend-refresh-implementation.md`
