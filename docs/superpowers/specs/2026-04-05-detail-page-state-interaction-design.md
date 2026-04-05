@@ -93,30 +93,27 @@ Approved state-specific copy:
 
 The message may mention the current state, but the layout must remain the same.
 
-### Floating Refresh Indicator
+### Waiting Card Visual Rules
 
-While the page is in `pending` or `running`, show a lightweight floating refresh indicator.
+The waiting card is a formal centered status card inside the `评估结论` area.
 
-Approved rules:
+Required elements:
 
-- position: bottom-right floating layer
-- style: light, non-blocking, and visually subordinate to the main page content
-- visible only during `pending` and `running`
-- hidden automatically on `succeeded` and `failed`
+- light status mark
+- status title
+- one-paragraph processing explanation
+- integrated refresh-countdown module
 
-Approved content form:
+The refresh countdown module belongs inside the waiting card rather than in a separate floating overlay.
 
-- status-refresh label
-- short text explanation
-- circular countdown indicator
+It should contain:
 
-The circular countdown indicator should:
+- a circular countdown indicator
+- remaining seconds in the center
+- a short status-refresh label
+- a short explanation that the platform will refresh automatically
 
-- show remaining seconds in the center
-- use the outer ring to represent the current polling-cycle progress
-- reset to `20s` after each polling cycle completes
-
-This floating layer exists to reduce waiting anxiety without interrupting the primary reading structure of the page.
+This card should feel calm and premium rather than technical or dashboard-like.
 
 ## Polling Rules
 
@@ -207,6 +204,21 @@ The failure card contains:
 
 The upload page is treated as the service homepage.
 
+### Failure Card Visual Rules
+
+The failure card is shown in the same `评估结论` position as the waiting card.
+
+Required elements:
+
+- failure status mark
+- failure title
+- brief recovery-oriented explanation
+- structured error-description block
+- primary retry entry
+- secondary return-home entry
+
+The failure card should remain formal and product-oriented. It should explain the failure without turning the page into a raw technical error dump.
+
 ### Recovery Entry Rules
 
 `重新发起评估` should clearly represent a fresh evaluation action.
@@ -229,15 +241,33 @@ This creates clear expectations:
 - after success: result
 - after failure: recovery
 
+## State Card Consistency
+
+The waiting card and failure card should use closely matched outer dimensions and spacing.
+
+Required consistency:
+
+- similar outer width
+- similar padding
+- similar corner radius
+- similar visual weight
+
+Reason:
+
+- reduce visible layout jump when switching between waiting and failed states
+- preserve page stability during state changes
+
 ## Final Approved Decisions
 
 - initial visible state after task creation is `评估准备中`
 - `pending` and `running` use the same waiting-card layout
 - waiting-card copy changes with the current state
+- the waiting card integrates the countdown module inside the card
 - the detail page polls every `20s`
 - polling stops on `succeeded` or `failed`
 - pending/running do not expand report modules
 - success content reveals in four layers
 - the download button belongs inside the main conclusion card
 - failed state shows a failure card with error details and two actions
+- waiting and failure cards use closely matched dimensions to reduce layout jump
 - the upload page is the homepage return target
