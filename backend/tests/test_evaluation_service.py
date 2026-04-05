@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import Mock
 
 from app.clients.model_client import (
+    CODEX_CLI_TIMEOUT_SECONDS,
     CodexModelClient,
     OpenAIModelClient,
     StaticModelClient,
@@ -376,6 +377,7 @@ def test_codex_model_client_runs_subprocess_and_returns_trimmed_stdout(monkeypat
         ],
         capture_output=True,
         text=True,
+        timeout=CODEX_CLI_TIMEOUT_SECONDS,
     )
 
 
@@ -401,3 +403,49 @@ def test_codex_model_client_raises_on_empty_stdout(monkeypatch) -> None:
         assert str(exc) == "Codex CLI returned empty stdout."
     else:
         raise AssertionError("CodexModelClient.generate_report() did not raise on empty stdout")
+
+
+def test_codex_model_client_raises_on_non_zero_exit_with_stderr_context(monkeypatch) -> None:
+    run_mock = Mock(
+        return_value=subprocess.CompletedProcess(
+            args=["codex"],
+            returncode=7,
+            stdout="",
+            stderr="authentication failed",
+        )
+    )
+    monkeypatch.setattr("app.clients.model_client.subprocess.run", run_mock)
+    client = CodexModelClient(model_name="gpt-5.4")
+
+    try:
+        client.generate_report(
+            skill_text="skill text",
+            template_text="template text",
+            packet_text="packet text",
+        )
+    except RuntimeError as exc:
+        assert str(exc) == "Codex CLI failed with exit code 7: authentication failed"
+    else:
+        raise AssertionError("CodexModelClient.generate_report() did not raise on non-zero exit")
+
+
+def test_codex_model_client_raises_on_subprocess_timeout(monkeypatch) -> None:
+    run_mock = Mock(
+        side_effect=subprocess.TimeoutExpired(
+            cmd=["codex", "exec"],
+            timeout=CODEX_CLI_TIMEOUT_SECONDS,
+        )
+    )
+    monkeypatch.setattr("app.clients.model_client.subprocess.run", run_mock)
+    client = CodexModelClient(model_name="gpt-5.4")
+
+    try:
+        client.generate_report(
+            skill_text="skill text",
+            template_text="template text",
+            packet_text="packet text",
+        )
+    except RuntimeError as exc:
+        assert str(exc) == f"Codex CLI timed out after {CODEX_CLI_TIMEOUT_SECONDS} seconds."
+    else:
+        raise AssertionError("CodexModelClient.generate_report() did not raise on timeout")

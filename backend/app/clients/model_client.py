@@ -11,6 +11,7 @@ REPORT_INSTRUCTIONS = (
     "You are a requirements evaluation assistant. "
     "Follow the rubric and produce the final answer in Chinese Markdown using the template."
 )
+CODEX_CLI_TIMEOUT_SECONDS = 300
 
 
 class ModelClient(Protocol):
@@ -63,11 +64,17 @@ class CodexModelClient:
             template_text=template_text,
             packet_text=packet_text,
         )
-        result = subprocess.run(
-            ["codex", "exec", "--model", self.model_name, prompt],
-            capture_output=True,
-            text=True,
-        )
+        try:
+            result = subprocess.run(
+                ["codex", "exec", "--model", self.model_name, prompt],
+                capture_output=True,
+                text=True,
+                timeout=CODEX_CLI_TIMEOUT_SECONDS,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(
+                f"Codex CLI timed out after {CODEX_CLI_TIMEOUT_SECONDS} seconds."
+            ) from exc
         if result.returncode != 0:
             stderr = result.stderr.strip() or "no stderr output"
             raise RuntimeError(
