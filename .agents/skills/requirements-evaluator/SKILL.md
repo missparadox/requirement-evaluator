@@ -14,6 +14,8 @@ This skill is self-contained. The default evaluation framework is fully defined 
 1. Inspect the input format.
    Support `.xlsx`, `.xlsm`, and `.json`.
    Treat each row or object as one requirement document.
+   For Excel workbooks, read only the default active sheet.
+   Ignore all other sheets unless the user explicitly asks for a different sheet.
    Preserve the original field names and note repeated headers instead of silently dropping them.
 
 2. Build the rubric before scoring.
@@ -185,6 +187,7 @@ python3 scripts/evaluate_requirements.py \
 
 Behavior:
 - reads Excel with `openpyxl` when available
+- for Excel workbooks, reads only the default active sheet and records the actual `sheet_name` in the review packet `source_info`
 - reads JSON arrays or objects with a top-level list field
 - handles repeated column names by keeping ordered occurrences
 - writes a review packet for the model
@@ -216,6 +219,7 @@ Preferred flow:
 1. Run the script to build a review packet.
 2. Load the packet, this `SKILL.md`, and the report template.
 3. Ask the model to produce the final Chinese evaluation report.
+4. State the actual `sheet_name` from the packet when the input is Excel.
 
 Recommended prompt pattern:
 
@@ -228,6 +232,7 @@ Read the report template at <skill-path>/references/report-template.md.
 
 Evaluate the requirements with the model, not with deterministic scripting.
 Output a Chinese Markdown report.
+When the input is Excel, state the actual `sheet_name` from the review packet before scoring.
 For each requirement:
 - give a weighted score and grade
 - cite concrete evidence from the row

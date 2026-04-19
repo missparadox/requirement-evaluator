@@ -154,6 +154,12 @@ class RowRecord:
         return ""
 
 
+@dataclass
+class ReadResult:
+    records: List[RowRecord]
+    source_info: Dict[str, object]
+
+
 def clean_text(value: str) -> str:
     return re.sub(r"\s+", " ", (value or "").strip())
 
@@ -184,7 +190,7 @@ def ensure_runtime_dependencies(path: Path) -> None:
     raise SystemExit(f"缺少运行依赖: {package_list}。请先执行: {hint}")
 
 
-def read_excel(path: Path) -> List[RowRecord]:
+def read_excel(path: Path) -> ReadResult:
     try:
         from openpyxl import load_workbook
     except ImportError as exc:
@@ -192,8 +198,12 @@ def read_excel(path: Path) -> List[RowRecord]:
     workbook = load_workbook(path, read_only=True, data_only=True)
     sheet = workbook.active
     rows = list(sheet.iter_rows(values_only=True))
+    source_info = {
+        "input_format": path.suffix.lower().lstrip("."),
+        "sheet_name": sheet.title,
+    }
     if not rows:
-        return []
+        return ReadResult(records=[], source_info=source_info)
     header = ["" if cell is None else str(cell) for cell in rows[0]]
     records = []
     for idx, row in enumerate(rows[1:], start=1):
@@ -204,10 +214,10 @@ def read_excel(path: Path) -> List[RowRecord]:
         for name, value in zip(header, values):
             grouped[name].append(value)
         records.append(RowRecord(index=idx, grouped=dict(grouped)))
-    return records
+    return ReadResult(records=records, source_info=source_info)
 
 
-def read_json(path: Path) -> List[RowRecord]:
+def read_json(path: Path) -> ReadResult:
     data = json.loads(path.read_text(encoding="utf-8"))
     if isinstance(data, dict):
         for value in data.values():
@@ -222,10 +232,15 @@ def read_json(path: Path) -> List[RowRecord]:
             continue
         grouped = {str(key): ["" if value is None else str(value)] for key, value in item.items()}
         records.append(RowRecord(index=idx, grouped=grouped))
-    return records
+    return ReadResult(
+        records=records,
+        source_info={
+            "input_format": path.suffix.lower().lstrip("."),
+        },
+    )
 
 
-def read_records(path: Path) -> List[RowRecord]:
+def read_records(path: Path) -> ReadResult:
     ensure_runtime_dependencies(path)
     suffix = path.suffix.lower()
     if suffix in {".xlsx", ".xlsm"}:
@@ -281,6 +296,7 @@ def build_review_packet(
     input_path: Path,
     dimensions: List[Dict[str, object]],
     records: Sequence[RowRecord],
+    source_info: Dict[str, object] | None = None,
 ) -> Dict[str, object]:
     items = []
     for record in records:
@@ -307,6 +323,7 @@ def build_review_packet(
 
     return {
         "input_path": str(input_path),
+        "source_info": dict(source_info or {}),
         "item_count": len(items),
         "dimension_count": len(dimensions),
         "dimensions": dimensions,
@@ -324,6 +341,8 @@ def render_review_packet_markdown(packet: Dict[str, object]) -> str:
     lines.append("## 数据概览")
     lines.append("")
     lines.append(f"- 输入文件: `{packet['input_path']}`")
+    for key, value in packet.get("source_info", {}).items():
+        lines.append(f"- {key}: `{value}`")
     lines.append(f"- 条目数: {packet['item_count']}")
     lines.append(f"- 维度数: {packet['dimension_count']}")
     lines.append("")
@@ -376,8 +395,13 @@ def main(argv: Sequence[str] | None = None) -> None:
     output_path = Path(args.output).expanduser().resolve()
 
     dimensions = build_dimensions()
-    records = read_records(input_path)
-    packet = build_review_packet(input_path, dimensions, records)
+    read_result = read_records(input_path)
+    packet = build_review_packet(
+        input_path,
+        dimensions,
+        read_result.records,
+        source_info=read_result.source_info,
+    )
 
     if args.format == "json":
         output_path.write_text(json.dumps(packet, ensure_ascii=False, indent=2), encoding="utf-8")

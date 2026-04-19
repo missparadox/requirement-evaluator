@@ -45,9 +45,11 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
             input_path=Path("requirements.json"),
             dimensions=self.module.DEFAULT_DIMENSIONS,
             records=[record],
+            source_info={"input_format": "json"},
         )
 
         self.assertEqual(packet["item_count"], 1)
+        self.assertEqual(packet["source_info"]["input_format"], "json")
         self.assertEqual(packet["items"][0]["id"], "DOR-1")
         self.assertIn("raw_fields", packet["items"][0])
         self.assertIn("dimension_view", packet["items"][0])
@@ -70,6 +72,7 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
             input_path=Path("sample.json"),
             dimensions=self.module.DEFAULT_DIMENSIONS,
             records=[record],
+            source_info={"input_format": "json"},
         )
         dim_view = packet["items"][0]["dimension_view"]
 
@@ -81,6 +84,7 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
     def test_rendered_markdown_is_a_review_packet_not_a_scored_report(self):
         packet = {
             "input_path": "requirements.json",
+            "source_info": {"input_format": "json", "sheet_name": "Sheet1"},
             "item_count": 1,
             "dimension_count": 1,
             "dimensions": [{"key": "dr_technical", "name": "DR-技术描述", "weight": 10, "description": "desc"}],
@@ -108,6 +112,7 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
 
         self.assertIn("# 需求评审任务包", rendered)
         self.assertIn("## 评审维度", rendered)
+        self.assertIn("- sheet_name: `Sheet1`", rendered)
         self.assertIn("维度视图", rendered)
         self.assertNotIn("总分:", rendered)
         self.assertNotIn("等级:", rendered)
@@ -141,7 +146,32 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
             packet = json.loads(output_path.read_text(encoding="utf-8"))
 
         self.assertEqual(packet["item_count"], 1)
+        self.assertEqual(packet["source_info"]["input_format"], "json")
         self.assertEqual(packet["items"][0]["name"], "DNS配置")
+
+    def test_read_excel_records_active_sheet_name_in_source_info(self):
+        try:
+            import openpyxl
+        except ImportError:
+            self.skipTest("openpyxl is not installed in the current test environment")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            input_path = tmp / "requirements.xlsx"
+
+            workbook = openpyxl.Workbook()
+            default_sheet = workbook.active
+            default_sheet.title = "Sheet1"
+            default_sheet.append(["OR需求编号", "OR需求名称*", "OR需求描述*"])
+            default_sheet.append(["DOR-1", "DNS配置", "支持 DNS 服务器配置。"])
+            workbook.create_sheet("OtherSheet")
+            workbook.save(input_path)
+
+            result = self.module.read_excel(input_path)
+
+        self.assertEqual(result.source_info["sheet_name"], "Sheet1")
+        self.assertEqual(result.source_info["input_format"], "xlsx")
+        self.assertEqual(len(result.records), 1)
 
     def test_missing_excel_dependency_message_contains_install_command(self):
         original_find_spec = self.module.importlib.util.find_spec
