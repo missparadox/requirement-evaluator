@@ -24,7 +24,12 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
     def test_build_dimensions_returns_default_rubric(self):
         dimensions = self.module.build_dimensions()
         by_key = {item["key"]: item for item in dimensions}
-        self.assertEqual(by_key["dr_technical"]["weight"], 8)
+        self.assertEqual(by_key["or_user_language"]["weight"], 12)
+        self.assertEqual(by_key["dr_technical"]["weight"], 10)
+        self.assertEqual(by_key["cross_scope"]["weight"], 6)
+        self.assertEqual(sum(item["weight"] for item in dimensions if item["key"].startswith("or_")), 40)
+        self.assertEqual(sum(item["weight"] for item in dimensions if item["key"].startswith("dr_")), 40)
+        self.assertEqual(sum(item["weight"] for item in dimensions if item["key"].startswith("cross_")), 20)
         self.assertEqual(by_key["or_scenario"]["name"], "OR-应用场景")
 
     def test_build_review_packet_keeps_rows_and_core_fields(self):
