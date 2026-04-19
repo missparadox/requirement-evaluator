@@ -1,6 +1,6 @@
 ---
 name: requirements-evaluator
-description: Evaluate requirement or design documents stored in CSV, Excel, or JSON files by having the model review the document content directly against a structured rubric and then produce a Chinese quality report with per-item scores, red flags, missing information, and prioritized revision advice. Use when Codex needs to review one or many requirement rows, reconcile user-provided dimensions with file headers, judge whether the documents are ready for implementation or testing, or prepare a model-driven review packet from tabular requirement data.
+description: Evaluate requirement or design documents stored in Excel or JSON files by having the model review the document content directly against a structured rubric and then produce a Chinese quality report with per-item scores, red flags, missing information, and prioritized revision advice. Use when Codex needs to review one or many requirement rows, reconcile user-provided dimensions with file headers, judge whether the documents are ready for implementation or testing, or prepare a model-driven review packet from structured requirement data.
 ---
 
 # Requirements Evaluator
@@ -12,7 +12,7 @@ This skill is self-contained. The default evaluation framework is fully defined 
 ## Workflow
 
 1. Inspect the input format.
-   Support `.csv`, `.xlsx`, `.xlsm`, and `.json`.
+   Support `.xlsx`, `.xlsm`, and `.json`.
    Treat each row or object as one requirement document.
    Preserve the original field names and note repeated headers instead of silently dropping them.
 
@@ -179,12 +179,11 @@ Use the bundled script when possible:
 
 ```bash
 python3 scripts/evaluate_requirements.py \
-  --input /path/to/input-file.csv \
+  --input /path/to/input-file.xlsx \
   --output /path/to/review-packet.md
 ```
 
 Behavior:
-- reads CSV directly
 - reads Excel with `openpyxl` when available
 - reads JSON arrays or objects with a top-level list field
 - handles repeated column names by keeping ordered occurrences
@@ -198,7 +197,7 @@ Use [references/dependencies.md](references/dependencies.md) for the concrete pa
 
 Current rule:
 
-- `.csv` and `.json` do not need extra Python packages
+- `.json` does not need extra Python packages
 - `.xlsx` and `.xlsm` require `openpyxl`
 
 If a dependency is missing:

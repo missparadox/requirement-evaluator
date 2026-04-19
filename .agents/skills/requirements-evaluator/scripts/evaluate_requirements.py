@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import importlib.util
 import json
 import re
@@ -185,23 +184,6 @@ def ensure_runtime_dependencies(path: Path) -> None:
     raise SystemExit(f"缺少运行依赖: {package_list}。请先执行: {hint}")
 
 
-def read_csv(path: Path) -> List[RowRecord]:
-    with path.open("r", encoding="utf-8-sig", newline="") as handle:
-        rows = list(csv.reader(handle))
-    if not rows:
-        return []
-    header = rows[0]
-    records = []
-    for idx, row in enumerate(rows[1:], start=1):
-        if len(row) < len(header):
-            row = row + [""] * (len(header) - len(row))
-        grouped: Dict[str, List[str]] = defaultdict(list)
-        for name, value in zip(header, row):
-            grouped[name].append("" if value is None else str(value))
-        records.append(RowRecord(index=idx, grouped=dict(grouped)))
-    return records
-
-
 def read_excel(path: Path) -> List[RowRecord]:
     try:
         from openpyxl import load_workbook
@@ -246,8 +228,6 @@ def read_json(path: Path) -> List[RowRecord]:
 def read_records(path: Path) -> List[RowRecord]:
     ensure_runtime_dependencies(path)
     suffix = path.suffix.lower()
-    if suffix == ".csv":
-        return read_csv(path)
     if suffix in {".xlsx", ".xlsm"}:
         return read_excel(path)
     if suffix == ".json":
@@ -387,7 +367,7 @@ def render_review_packet_markdown(packet: Dict[str, object]) -> str:
 
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Build a review packet for LLM-based requirement evaluation.")
-    parser.add_argument("--input", required=True, help="Path to the input CSV/Excel/JSON file.")
+    parser.add_argument("--input", required=True, help="Path to the input Excel/JSON file.")
     parser.add_argument("--output", required=True, help="Path to write the review packet.")
     parser.add_argument("--format", choices=("markdown", "json"), default="markdown", help="Output packet format.")
     args = parser.parse_args(argv)

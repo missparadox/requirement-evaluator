@@ -42,7 +42,7 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         )
 
         packet = self.module.build_review_packet(
-            input_path=Path("requirements.csv"),
+            input_path=Path("requirements.json"),
             dimensions=self.module.DEFAULT_DIMENSIONS,
             records=[record],
         )
@@ -67,7 +67,7 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         )
 
         packet = self.module.build_review_packet(
-            input_path=Path("sample.csv"),
+            input_path=Path("sample.json"),
             dimensions=self.module.DEFAULT_DIMENSIONS,
             records=[record],
         )
@@ -80,7 +80,7 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
 
     def test_rendered_markdown_is_a_review_packet_not_a_scored_report(self):
         packet = {
-            "input_path": "requirements.csv",
+            "input_path": "requirements.json",
             "item_count": 1,
             "dimension_count": 1,
             "dimensions": [{"key": "dr_technical", "name": "DR-技术描述", "weight": 10, "description": "desc"}],

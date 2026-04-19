@@ -15,6 +15,6 @@ python3 -m pip install openpyxl
 
 ## Detection rule
 
-- For `.csv` and `.json`, no extra Python package is required.
+- For `.json`, no extra Python package is required.
 - For `.xlsx` and `.xlsm`, detect whether `openpyxl` is installed before reading the file.
 - If the package is missing, stop and show the install command instead of failing with a vague import error.
