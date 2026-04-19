@@ -178,6 +178,11 @@ For each OR unit:
    - each DR score
    - DR average score
    - requirement decomposition and traceability score
+   - review conclusion
+   - design review readiness
+   - development readiness
+   - test design readiness
+   - blocking issues when present
    - triggered red-line rules and score-cap basis when applicable
    - 2 to 4 key evidence bullets
    - 1 to 3 red flags
@@ -263,6 +268,11 @@ For each OR:
 - give each DR score
 - give the DR average score
 - give the requirement decomposition and traceability score
+- give a formal review conclusion
+- state whether it is ready for design review
+- state whether it is ready for development
+- state whether it is ready for test design
+- list blocking issues when they exist
 - cite concrete evidence from the OR and DR rows
 - list red flags
 - list missing items
