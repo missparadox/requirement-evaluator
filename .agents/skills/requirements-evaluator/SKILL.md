@@ -42,6 +42,26 @@ This skill is self-contained. The default evaluation framework is fully defined 
    - recurring weak dimensions
    - prioritized recommendations
    - a final judgment on whether the set reaches excellent-design quality
+   For report shape, use these rules:
+   - If the OR count is small enough to fit comfortably, provide a full detailed scorecard for every OR.
+   - If the OR count is large and full detailed scorecards would make the reply unwieldy, still cover every OR in the same turn by providing:
+     - a complete all-OR score table, and
+     - detailed scorecards for the highest-risk, lowest-scoring, best-written, or otherwise representative ORs.
+   - In the large-input case, the report is still considered incomplete unless every OR appears somewhere in the report output, either in the full score table or in a detailed scorecard.
+   For report file location and naming, use these rules by default:
+   - Write the formal report to the repository `reports/` directory when working inside a project workspace.
+   - Name the report file after the input file stem plus `.md`.
+   - Example: `requirements.xlsm` -> `reports/requirements.md`
+   - Example: `foo/bar/design-review.xlsx` -> `reports/design-review.md`
+   - If the user explicitly asks for another location or filename, follow the user request instead.
+
+5. Pass the delivery gate before ending the turn.
+   If the user asked to evaluate or review requirements, the turn is not complete until a formal Chinese Markdown report has been delivered.
+   Do not stop at a packet summary, a scoring preview, a plan, or a list of next-step options.
+   If the report is very long, still deliver the formal report in the same turn by:
+   - giving a complete report body to the user, or
+   - writing the complete report to the default report path and telling the user where it is, while also providing a concise executive summary in the response.
+   Do not ask the user whether they want the formal report after they already asked for evaluation.
 
 ## Scoring Rules
 
@@ -192,6 +212,17 @@ For each OR unit:
 8. Write cross-OR findings.
    Identify repeated weak dimensions, separate structural issues from OR-specific issues, call out the best-written OR units as templates, and summarize whether the whole set is ready for design review, implementation, and system test design.
 
+9. Run a completion check.
+   Before replying, verify all of the following:
+   - the actual `sheet_name` is stated when the input is Excel
+   - the report includes the overall average score and grade distribution
+   - the report includes all OR units, either as full scorecards or as a complete score table plus detailed cards for the highest-risk or most representative ORs
+   - triggered red-line rules are stated where applicable
+   - the final response contains the formal report itself or points to the file containing it
+   - the response does not end by asking the user whether they want the report
+   - if a condensed large-input format was used, the response explicitly says that the report uses "full score table + selected detailed cards" rather than silently dropping detailed coverage
+   - when a local report file is created, its path follows the default `reports/<input-file-stem>.md` rule unless the user explicitly requested a different location
+
 Avoid these failure modes:
 
 - do not reward a requirement for information that exists only in neighboring rows unless traceability is explicit
@@ -250,6 +281,9 @@ Preferred flow:
 4. State the actual `sheet_name` from the packet when the input is Excel.
 5. Report scores by OR unit, not by raw row.
 6. Fill the prebuilt scoring skeleton from the packet instead of inventing a new report structure.
+7. Deliver the report in the same turn without waiting for extra confirmation from the user.
+8. When the input is large, prefer "complete all-OR score table + selected detailed scorecards" over omitting OR coverage or asking the user to choose a shorter format.
+9. When writing the formal report to disk, use `reports/<input-file-stem>.md` by default.
 
 Recommended prompt pattern:
 
@@ -288,5 +322,7 @@ Then summarize cross-OR weaknesses, strongest examples, the overall average scor
 
 - Keep this skill body concise. Put detailed criteria in references.
 - If the user asks for only a review and no file changes, you may run the script to prepare the packet and then perform the final evaluation in the model response.
+- If the report is long, prefer writing a complete local Markdown report and referencing that file in the response, rather than downgrading the output into a non-report summary.
+- Create the `reports/` directory when needed before writing the formal report file.
 - Treat the script output as context assembly, not as the verdict.
 - If the input is large, summarize repetitive low-signal rows and spend more space on the highest-risk or highest-value requirements.
