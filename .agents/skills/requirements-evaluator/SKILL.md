@@ -23,6 +23,7 @@ This skill is self-contained. The default evaluation framework is fully defined 
    Start with the default rubric defined in this file.
    If the input headers clearly provide additional useful fields, incorporate them as evidence, not as new mandatory dimensions by default.
    Bias judgment toward implementation readiness and test readiness, while still checking OR quality and business clarity.
+   Read [references/scoring-anchors.md](references/scoring-anchors.md) before final scoring to apply anchor definitions and red-line score caps.
    If a user explicitly asks for outside references or local evidence is insufficient, browse authoritative sources. Otherwise prefer local evidence.
 
 3. Review each OR unit with the model.
@@ -110,6 +111,8 @@ Apply these rules:
 - Prefer quoting or paraphrasing concrete field evidence over broad subjective summaries.
 - When implementation and testing readiness conflict with OR completeness, explain the tradeoff explicitly instead of hiding it in the score.
 - Mark clearly non-applicable dimensions as `N/A` and exclude them from the denominator instead of scoring them as missing.
+- Apply the anchor definitions and red-line rules from [references/scoring-anchors.md](references/scoring-anchors.md) before finalizing any score.
+- If any red-line rule is triggered, explicitly state the rule id and the score-cap basis in the final report.
 
 Evidence tiering:
 
@@ -175,6 +178,7 @@ For each OR unit:
    - each DR score
    - DR average score
    - requirement decomposition and traceability score
+   - triggered red-line rules and score-cap basis when applicable
    - 2 to 4 key evidence bullets
    - 1 to 3 red flags
    - 1 to 4 missing items
@@ -247,6 +251,7 @@ Use $requirements-evaluator at <skill-path>.
 
 Read the requirement review packet at <packet-path>.
 Use the rubric defined in <skill-path>/SKILL.md as the scoring basis.
+Read the scoring anchors at <skill-path>/references/scoring-anchors.md.
 Read the report template at <skill-path>/references/report-template.md.
 
 Evaluate the requirements with the model, not with deterministic scripting.
@@ -262,6 +267,7 @@ For each OR:
 - list red flags
 - list missing items
 - give prioritized revision advice
+- state any triggered red-line rule as explicit score-cap evidence when applicable
 
 Then summarize cross-OR weaknesses, strongest examples, the overall average score across all OR totals, and whether the set is ready for implementation and testing.
 ```
