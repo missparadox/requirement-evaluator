@@ -74,27 +74,27 @@ DEFAULT_DIMENSIONS = [
     },
     {
         "key": "cross_scope",
-        "name": "跨层-范围与边界",
+        "name": "需求分解与追踪-范围与边界",
         "weight": 6,
-        "description": "是否明确包含范围、排除范围、边界条件和适用边界",
+        "description": "是否明确 OR 到各 DR 的范围拆解、排除范围、边界条件和适用边界",
     },
     {
         "key": "cross_dependencies",
-        "name": "跨层-假设与依赖",
+        "name": "需求分解与追踪-假设与依赖",
         "weight": 6,
-        "description": "是否说明假设、前置条件、上下游依赖和外部约束",
+        "description": "是否明确 OR 到各 DR 的假设、前置条件、上下游依赖和外部约束",
     },
     {
         "key": "cross_traceability",
-        "name": "跨层-一致性与可追踪",
+        "name": "需求分解与追踪-一致性与可追踪性",
         "weight": 4,
-        "description": "OR/DR/DS/TDR/TDS 是否语义一致、可追踪、无明显冲突",
+        "description": "OR/DR/DS/TDR/TDS 是否语义一致、可追踪、无明显冲突，且 DR 对 OR 的分解关系清晰",
     },
     {
         "key": "cross_exceptions",
-        "name": "跨层-异常处理与边界条件",
+        "name": "需求分解与追踪-异常与边界场景",
         "weight": 4,
-        "description": "是否覆盖异常输入、失败路径、日志、回滚、告警等边界情况",
+        "description": "是否在 OR 到 DR 的分解结果中覆盖异常输入、失败路径、日志、回滚、告警等边界场景",
     },
 ]
 
@@ -130,6 +130,42 @@ CORE_FIELD_MAP = {
     "tds_name": "TDS需求名称*",
     "tds_desc": "TDS需求描述*",
 }
+
+OR_CORE_ALIASES = (
+    "or_id",
+    "or_name",
+    "or_desc",
+    "scenario",
+    "customer_problem",
+    "value_desc",
+    "constraints",
+    "requirement_source",
+    "region",
+)
+
+DR_CORE_ALIASES = (
+    "dr_id",
+    "dr_name",
+    "dr_desc",
+    "dr_integration",
+    "dr_param",
+    "dr_operation",
+    "dr_test",
+    "dr_security",
+    "ds_id",
+    "ds_name",
+    "ds_desc",
+    "spec_type",
+    "subsystem",
+    "ds_dependencies",
+    "ds_verify",
+    "tdr_id",
+    "tdr_name",
+    "tdr_desc",
+    "tds_id",
+    "tds_name",
+    "tds_desc",
+)
 
 DIMENSION_FIELD_MAP = {
     "or_user_language": ["OR需求名称*", "OR需求描述*", "更多描述信息"],
@@ -202,25 +238,41 @@ def read_excel(path: Path) -> ReadResult:
         from openpyxl import load_workbook
     except ImportError as exc:
         raise SystemExit("读取 Excel 需要安装 openpyxl") from exc
-    workbook = load_workbook(path, read_only=True, data_only=True)
+    workbook = load_workbook(path, read_only=False, data_only=True)
     sheet = workbook.active
-    rows = list(sheet.iter_rows(values_only=True))
     source_info = {
         "input_format": path.suffix.lower().lstrip("."),
         "sheet_name": sheet.title,
     }
-    if not rows:
+    if sheet.max_row < 1:
         return ReadResult(records=[], source_info=source_info)
-    header = ["" if cell is None else str(cell) for cell in rows[0]]
+    merged_values = {}
+    for merged_range in sheet.merged_cells.ranges:
+        min_col, min_row, max_col, max_row = merged_range.bounds
+        anchor_value = sheet.cell(min_row, min_col).value
+        for row in range(min_row, max_row + 1):
+            for col in range(min_col, max_col + 1):
+                merged_values[(row, col)] = anchor_value
+
+    def cell_value(row: int, col: int) -> str:
+        value = sheet.cell(row, col).value
+        if value is None and (row, col) in merged_values:
+            value = merged_values[(row, col)]
+        return "" if value is None else str(value)
+
+    header = [cell_value(1, col) for col in range(1, sheet.max_column + 1)]
+    while header and not clean_text(header[-1]):
+        header.pop()
+    if not header:
+        return ReadResult(records=[], source_info=source_info)
+
     records = []
-    for idx, row in enumerate(rows[1:], start=1):
+    for row_index in range(2, sheet.max_row + 1):
         grouped: Dict[str, List[str]] = defaultdict(list)
-        values = ["" if cell is None else str(cell) for cell in row]
-        if len(values) < len(header):
-            values += [""] * (len(header) - len(values))
+        values = [cell_value(row_index, col) for col in range(1, len(header) + 1)]
         for name, value in zip(header, values):
             grouped[name].append(value)
-        records.append(RowRecord(index=idx, grouped=dict(grouped)))
+        records.append(RowRecord(index=row_index - 1, grouped=dict(grouped)))
     return ReadResult(records=records, source_info=source_info)
 
 
@@ -277,6 +329,93 @@ def extract_core_fields(record: RowRecord) -> Dict[str, str]:
     return core
 
 
+def select_core_fields(core_fields: Dict[str, str], aliases: Sequence[str]) -> Dict[str, str]:
+    return {alias: core_fields.get(alias, "") for alias in aliases}
+
+
+def filter_dimensions(dimensions: Sequence[Dict[str, object]], prefix: str) -> List[Dict[str, object]]:
+    return [dimension for dimension in dimensions if str(dimension["key"]).startswith(prefix)]
+
+
+def score_structure(dimensions: Sequence[Dict[str, object]]) -> Dict[str, int]:
+    return {
+        "or_total_weight": sum(int(d["weight"]) for d in dimensions if str(d["key"]).startswith("or_")),
+        "dr_total_weight": sum(int(d["weight"]) for d in dimensions if str(d["key"]).startswith("dr_")),
+        "cross_total_weight": sum(int(d["weight"]) for d in dimensions if str(d["key"]).startswith("cross_")),
+    }
+
+
+def merge_records(records: Sequence[RowRecord]) -> RowRecord:
+    grouped: Dict[str, List[str]] = defaultdict(list)
+    for record in records:
+        for key, values in record.grouped.items():
+            for value in values:
+                text = clean_text(value)
+                if not text:
+                    continue
+                if text not in grouped[key]:
+                    grouped[key].append(text)
+    return RowRecord(index=records[0].index if records else 0, grouped=dict(grouped))
+
+
+def build_raw_fields(record: RowRecord) -> Dict[str, List[str]]:
+    return {
+        key: [clean_text(value) for value in values if clean_text(value)]
+        for key, values in record.grouped.items()
+        if any(clean_text(value) for value in values)
+    }
+
+
+def group_records_by_or(records: Sequence[RowRecord]) -> List[List[RowRecord]]:
+    groups: List[List[RowRecord]] = []
+    current: List[RowRecord] = []
+    current_key = ""
+
+    for record in records:
+        core = extract_core_fields(record)
+        or_key = core.get("or_id") or ""
+        if current and or_key and or_key != current_key:
+            groups.append(current)
+            current = [record]
+            current_key = or_key
+            continue
+        if current:
+            current.append(record)
+            if or_key:
+                current_key = or_key
+            continue
+        current = [record]
+        current_key = or_key or f"ROW-{record.index}"
+
+    if current:
+        groups.append(current)
+    return groups
+
+
+def group_records_by_dr(records: Sequence[RowRecord]) -> List[List[RowRecord]]:
+    groups: List[List[RowRecord]] = []
+    current: List[RowRecord] = []
+    current_key = ""
+
+    for record in records:
+        core = extract_core_fields(record)
+        dr_key = core.get("dr_id") or f"ROW-{record.index}"
+        if current and dr_key != current_key:
+            groups.append(current)
+            current = [record]
+            current_key = dr_key
+            continue
+        if current:
+            current.append(record)
+            continue
+        current = [record]
+        current_key = dr_key
+
+    if current:
+        groups.append(current)
+    return groups
+
+
 def build_dimension_view(record: RowRecord, dimensions: Sequence[Dict[str, object]]) -> Dict[str, Dict[str, object]]:
     view = {}
     for dimension in dimensions:
@@ -305,25 +444,54 @@ def build_review_packet(
     records: Sequence[RowRecord],
     source_info: Dict[str, object] | None = None,
 ) -> Dict[str, object]:
-    items = []
-    for record in records:
-        raw_fields = {
-            key: [clean_text(value) for value in values if clean_text(value)]
-            for key, values in record.grouped.items()
-            if any(clean_text(value) for value in values)
-        }
+    or_dimensions = filter_dimensions(dimensions, "or_")
+    dr_dimensions = filter_dimensions(dimensions, "dr_")
+    cross_dimensions = filter_dimensions(dimensions, "cross_")
+
+    groups = []
+    total_dr_count = 0
+    for or_records in group_records_by_or(records):
+        merged_or_record = merge_records(or_records)
+        raw_fields = build_raw_fields(merged_or_record)
         if not raw_fields:
             continue
-        core_fields = extract_core_fields(record)
-        requirement_id = core_fields.get("or_id") or core_fields.get("dr_id") or core_fields.get("ds_id") or f"ROW-{record.index}"
-        requirement_name = core_fields.get("or_name") or core_fields.get("dr_name") or requirement_id
-        items.append(
+        full_core_fields = extract_core_fields(merged_or_record)
+        or_core_fields = select_core_fields(full_core_fields, OR_CORE_ALIASES)
+        requirement_id = full_core_fields.get("or_id") or full_core_fields.get("dr_id") or full_core_fields.get("ds_id") or f"ROW-{or_records[0].index}"
+        requirement_name = full_core_fields.get("or_name") or full_core_fields.get("dr_name") or requirement_id
+
+        dr_items = []
+        for dr_records in group_records_by_dr(or_records):
+            merged_dr_record = merge_records(dr_records)
+            full_dr_core_fields = extract_core_fields(merged_dr_record)
+            dr_core_fields = select_core_fields(full_dr_core_fields, DR_CORE_ALIASES)
+            dr_id = full_dr_core_fields.get("dr_id") or f"ROW-{dr_records[0].index}"
+            dr_name = full_dr_core_fields.get("dr_name") or dr_id
+            dr_raw_fields = build_raw_fields(merged_dr_record)
+            if not dr_raw_fields:
+                continue
+            dr_items.append(
+                {
+                    "row_indices": [record.index for record in dr_records],
+                    "id": dr_id,
+                    "name": dr_name,
+                    "core_fields": dr_core_fields,
+                    "dimension_view": build_dimension_view(merged_dr_record, dr_dimensions),
+                    "raw_fields": dr_raw_fields,
+                }
+            )
+        total_dr_count += len(dr_items)
+
+        groups.append(
             {
-                "row_index": record.index,
+                "row_indices": [record.index for record in or_records],
                 "id": requirement_id,
                 "name": requirement_name,
-                "core_fields": core_fields,
-                "dimension_view": build_dimension_view(record, dimensions),
+                "or_core_fields": or_core_fields,
+                "or_dimension_view": build_dimension_view(merged_or_record, or_dimensions),
+                "dr_items": dr_items,
+                "dr_count": len(dr_items),
+                "cross_dimension_view": build_dimension_view(merged_or_record, cross_dimensions),
                 "raw_fields": raw_fields,
             }
         )
@@ -331,11 +499,14 @@ def build_review_packet(
     return {
         "input_path": str(input_path),
         "source_info": dict(source_info or {}),
-        "item_count": len(items),
+        "score_structure": score_structure(dimensions),
+        "item_count": len(groups),
+        "or_count": len(groups),
+        "dr_count": total_dr_count,
         "dimension_count": len(dimensions),
         "dimensions": dimensions,
         "header_summary": summarize_headers(records),
-        "items": items,
+        "groups": groups,
     }
 
 
@@ -350,8 +521,15 @@ def render_review_packet_markdown(packet: Dict[str, object]) -> str:
     lines.append(f"- 输入文件: `{packet['input_path']}`")
     for key, value in packet.get("source_info", {}).items():
         lines.append(f"- {key}: `{value}`")
-    lines.append(f"- 条目数: {packet['item_count']}")
+    lines.append(f"- OR条目数: {packet['or_count']}")
+    lines.append(f"- DR条目数: {packet['dr_count']}")
     lines.append(f"- 维度数: {packet['dimension_count']}")
+    lines.append("")
+    lines.append("## 评分结构")
+    lines.append("")
+    lines.append(f"- OR部分: {packet['score_structure']['or_total_weight']}")
+    lines.append(f"- DR部分: {packet['score_structure']['dr_total_weight']}，每个 OR 下的多个 DR 分别评分后取平均")
+    lines.append(f"- 需求分解与追踪质量部分: {packet['score_structure']['cross_total_weight']}，每个 OR 只评一次")
     lines.append("")
     lines.append("## 表头摘要")
     lines.append("")
@@ -365,18 +543,21 @@ def render_review_packet_markdown(packet: Dict[str, object]) -> str:
         weight = item.get("weight", "")
         lines.append(f"- {item['name']} ({weight}): {desc}")
     lines.append("")
-    lines.append("## 需求条目")
+    lines.append("## OR评审单元")
     lines.append("")
-    for item in packet["items"]:
-        lines.append(f"### 条目 {item['row_index']}: {item['id']} {item['name']}")
+    for item in packet["groups"]:
+        lines.append(f"### OR {item['id']} {item['name']}")
         lines.append("")
-        lines.append("核心字段：")
-        for key, value in item["core_fields"].items():
+        lines.append(f"- 覆盖行: {', '.join(str(idx) for idx in item['row_indices'])}")
+        lines.append(f"- DR数量: {item['dr_count']}")
+        lines.append("")
+        lines.append("OR核心字段：")
+        for key, value in item["or_core_fields"].items():
             if value:
                 lines.append(f"- {key}: {value}")
         lines.append("")
-        lines.append("维度视图：")
-        for key, dimension in item.get("dimension_view", {}).items():
+        lines.append("OR维度视图：")
+        for key, dimension in item.get("or_dimension_view", {}).items():
             lines.append(f"- {key} / {dimension['name']}")
             if dimension["evidence_fields"]:
                 for field, values in dimension["evidence_fields"].items():
@@ -384,7 +565,31 @@ def render_review_packet_markdown(packet: Dict[str, object]) -> str:
             if dimension["missing_fields"]:
                 lines.append(f"  - missing: {', '.join(dimension['missing_fields'])}")
         lines.append("")
-        lines.append("原始字段：")
+        lines.append("DR评审单元：")
+        for dr_item in item["dr_items"]:
+            lines.append(f"- DR {dr_item['id']} {dr_item['name']}")
+            lines.append(f"  - row_indices: {', '.join(str(idx) for idx in dr_item['row_indices'])}")
+            for key, value in dr_item["core_fields"].items():
+                if value and key.startswith(("dr_", "ds_", "tdr_", "tds_")):
+                    lines.append(f"  - {key}: {value}")
+            for key, dimension in dr_item.get("dimension_view", {}).items():
+                lines.append(f"  - {key} / {dimension['name']}")
+                if dimension["evidence_fields"]:
+                    for field, values in dimension["evidence_fields"].items():
+                        lines.append(f"    - evidence {field}: {' | '.join(values)}")
+                if dimension["missing_fields"]:
+                    lines.append(f"    - missing: {', '.join(dimension['missing_fields'])}")
+        lines.append("")
+        lines.append("需求分解与追踪维度视图：")
+        for key, dimension in item.get("cross_dimension_view", {}).items():
+            lines.append(f"- {key} / {dimension['name']}")
+            if dimension["evidence_fields"]:
+                for field, values in dimension["evidence_fields"].items():
+                    lines.append(f"  - evidence {field}: {' | '.join(values)}")
+            if dimension["missing_fields"]:
+                lines.append(f"  - missing: {', '.join(dimension['missing_fields'])}")
+        lines.append("")
+        lines.append("聚合原始字段：")
         for key, values in item["raw_fields"].items():
             lines.append(f"- {key}: {' | '.join(values)}")
         lines.append("")

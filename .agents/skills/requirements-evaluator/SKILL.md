@@ -13,9 +13,10 @@ This skill is self-contained. The default evaluation framework is fully defined 
 
 1. Inspect the input format.
    Support `.xlsx`, `.xlsm`, and `.json`.
-   Treat each row or object as one requirement document.
+   Excel rows may represent one OR with multiple DR rows because merged cells are common.
    For Excel workbooks, read only the default active sheet.
    Ignore all other sheets unless the user explicitly asks for a different sheet.
+   Expand merged-cell evidence before review so that blank follower rows still inherit the OR fields they belong to.
    Preserve the original field names and note repeated headers instead of silently dropping them.
 
 2. Build the rubric before scoring.
@@ -24,9 +25,9 @@ This skill is self-contained. The default evaluation framework is fully defined 
    Bias judgment toward implementation readiness and test readiness, while still checking OR quality and business clarity.
    If a user explicitly asks for outside references or local evidence is insufficient, browse authoritative sources. Otherwise prefer local evidence.
 
-3. Review each requirement row with the model.
+3. Review each OR unit with the model.
    Use the rubric in this file as the primary standard.
-   Base every score on explicit evidence in the row.
+   Base every score on explicit evidence in the OR and its linked DR rows.
    If a dimension is not clearly addressed, score it as missing or weak instead of assuming intent.
    If a dimension is genuinely not applicable, say why. Do not silently award full credit.
    Do not delegate the final score to a deterministic script.
@@ -57,10 +58,10 @@ Default weight profile:
 - `DR-无歧义性`: 5
 - `DR-性能需求`: 3
 - `DR-硬件分析`: 2
-- `跨层-范围与边界`: 6
-- `跨层-假设与依赖`: 6
-- `跨层-一致性与可追踪`: 4
-- `跨层-异常处理与边界条件`: 4
+- `需求分解与追踪-范围与边界`: 6
+- `需求分解与追踪-假设与依赖`: 6
+- `需求分解与追踪-一致性与可追踪性`: 4
+- `需求分解与追踪-异常与边界场景`: 4
 
 Dimension intent:
 
@@ -84,17 +85,24 @@ Dimension intent:
   Check whether relevant performance expectations are stated.
 - `DR-硬件分析`
   Check whether hardware or resource assumptions are stated when relevant.
-- `跨层-范围与边界`
-  Check whether the requirement defines inclusions, exclusions, and main behavior boundaries.
-- `跨层-假设与依赖`
-  Check whether assumptions, dependencies, upstream inputs, or external conditions are visible.
-- `跨层-一致性与可追踪`
-  Check whether OR, DR, DS, TDR, and TDS align and trace cleanly.
-- `跨层-异常处理与边界条件`
-  Check whether invalid input, failures, rollback, timeout, conflict, logging, or edge conditions are covered.
+- `需求分解与追踪-范围与边界`
+  Check whether the OR-to-DR decomposition defines inclusions, exclusions, and main behavior boundaries.
+- `需求分解与追踪-假设与依赖`
+  Check whether decomposition assumptions, dependencies, upstream inputs, or external conditions are visible.
+- `需求分解与追踪-一致性与可追踪性`
+  Check whether OR, DR, DS, TDR, and TDS align and trace cleanly, and whether each DR clearly maps back to the OR.
+- `需求分解与追踪-异常与边界场景`
+  Check whether invalid input, failures, rollback, timeout, conflict, logging, or edge conditions are covered in the decomposition result.
 
 Apply these rules:
 - Prefer weighted scoring out of 100.
+- Score one OR unit at a time.
+- `OR` part is scored once out of 40 for the OR statement itself.
+- Each linked `DR` is scored separately out of 40.
+- When one OR has multiple DRs, compute the `DR` part as the arithmetic average of all DR scores.
+- `需求分解与追踪质量` part is scored once out of 20 by analyzing the relationship between the OR and all of its linked DRs together.
+- Final OR total score = `OR部分得分 + DR平均分 + 需求分解与追踪质量得分`.
+- Final document score = the arithmetic average of all OR total scores.
 - Always start from the rubric above.
 - Add missing dimensions only when needed to reflect strong requirement-writing standards.
 - Separate evidence, judgment, and recommendation in the write-up.
@@ -135,37 +143,45 @@ Common positive signals:
 
 ## Review Procedure
 
-For each requirement row:
+For each OR unit:
 
-1. Identify the requirement first.
-   Capture row index, requirement ID, and requirement name.
+1. Identify the OR first.
+   Capture the OR row range, OR ID, and OR name.
 
-2. Read staged fields together.
-   Read OR, DR, DS, TDR, and TDS as one chain when present.
-   Do not score OR and DR in isolation if they clearly describe the same requirement at different levels.
+2. Identify all linked DRs.
+   Use the expanded packet rather than the raw merged layout.
+   Collect every DR that belongs to the OR before scoring.
 
-3. Build a short evidence view.
-   Extract the few lines that most strongly support or weaken the requirement.
+3. Read staged fields together.
+   Read OR, each DR, and DS/TDR/TDS fields as one chain when present.
+   Score OR once, each DR once, and cross-layer consistency once.
+
+4. Build a short evidence view.
+   Extract the few lines that most strongly support or weaken the OR and each DR.
    Prefer explicit statements over inferred intent.
 
-4. Score each dimension.
+5. Score each dimension.
    Decide whether the dimension is applicable.
-   Mark `N/A` only when the requirement genuinely does not call for that dimension.
+   Mark `N/A` only when the OR or DR genuinely does not call for that dimension.
    Write one short reason per dimension.
 
-5. Make a readiness judgment.
-   Ask whether an engineer can implement it without major assumptions, whether a tester can derive meaningful test cases, and whether failure paths, limits, and dependencies are visible enough to reduce rework.
+6. Make a readiness judgment.
+   Ask whether an engineer can implement every DR without major assumptions, whether a tester can derive meaningful test cases, and whether the OR-to-DR mapping is complete enough to reduce rework.
 
-6. Write per-requirement findings.
+7. Write per-OR findings.
    Output:
-   - score and grade
+   - OR total score
+   - OR part score
+   - each DR score
+   - DR average score
+   - requirement decomposition and traceability score
    - 2 to 4 key evidence bullets
    - 1 to 3 red flags
    - 1 to 4 missing items
    - 2 to 5 revision actions
 
-7. Write cross-requirement findings.
-   Identify repeated weak dimensions, separate structural issues from row-specific issues, call out the best-written rows as templates, and summarize whether the whole set is ready for design review, implementation, and system test design.
+8. Write cross-OR findings.
+   Identify repeated weak dimensions, separate structural issues from OR-specific issues, call out the best-written OR units as templates, and summarize whether the whole set is ready for design review, implementation, and system test design.
 
 Avoid these failure modes:
 
@@ -174,6 +190,7 @@ Avoid these failure modes:
 - do not over-penalize business framing if technical readiness is strong; explain the imbalance instead
 - do not produce generic recommendations like “完善需求”; name the missing field or behavior
 - do not let the packet structure force shallow review
+- do not collapse multiple DRs under one OR into a single DR score
 
 ## Local Script
 
@@ -188,8 +205,9 @@ python3 scripts/evaluate_requirements.py \
 Behavior:
 - reads Excel with `openpyxl` when available
 - for Excel workbooks, reads only the default active sheet and records the actual `sheet_name` in the review packet `source_info`
+- expands merged cells so OR fields remain visible on follower DR rows
 - reads JSON arrays or objects with a top-level list field
-- handles repeated column names by keeping ordered occurrences
+- groups the packet by OR and nests all linked DR entries under that OR
 - writes a review packet for the model
 - does not generate the final scores or the final report on its own
 
@@ -220,6 +238,7 @@ Preferred flow:
 2. Load the packet, this `SKILL.md`, and the report template.
 3. Ask the model to produce the final Chinese evaluation report.
 4. State the actual `sheet_name` from the packet when the input is Excel.
+5. Report scores by OR unit, not by raw row.
 
 Recommended prompt pattern:
 
@@ -233,14 +252,18 @@ Read the report template at <skill-path>/references/report-template.md.
 Evaluate the requirements with the model, not with deterministic scripting.
 Output a Chinese Markdown report.
 When the input is Excel, state the actual `sheet_name` from the review packet before scoring.
-For each requirement:
-- give a weighted score and grade
-- cite concrete evidence from the row
+For each OR:
+- give the OR total score
+- give the OR part score
+- give each DR score
+- give the DR average score
+- give the requirement decomposition and traceability score
+- cite concrete evidence from the OR and DR rows
 - list red flags
 - list missing items
 - give prioritized revision advice
 
-Then summarize cross-requirement weaknesses, strongest examples, and whether the set is ready for implementation and testing.
+Then summarize cross-OR weaknesses, strongest examples, the overall average score across all OR totals, and whether the set is ready for implementation and testing.
 ```
 
 ## Notes
