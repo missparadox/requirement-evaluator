@@ -74,27 +74,27 @@ DEFAULT_DIMENSIONS = [
     },
     {
         "key": "cross_scope",
-        "name": "需求分解与追踪-范围与边界",
+        "name": "需求分解完整性",
         "weight": 6,
-        "description": "是否明确 OR 到各 DR 的范围拆解、排除范围、边界条件和适用边界",
+        "description": "是否覆盖 OR 的关键能力点，多个 DR 合起来是否形成完整分解，是否存在明显漏拆",
     },
     {
         "key": "cross_dependencies",
-        "name": "需求分解与追踪-假设与依赖",
-        "weight": 6,
-        "description": "是否明确 OR 到各 DR 的假设、前置条件、上下游依赖和外部约束",
+        "name": "需求分解边界清晰度",
+        "weight": 4,
+        "description": "各 DR 之间的职责边界是否清楚，是否存在交叉、重复拆解或责任不清",
     },
     {
         "key": "cross_traceability",
-        "name": "需求分解与追踪-一致性与可追踪性",
-        "weight": 4,
-        "description": "OR/DR/DS/TDR/TDS 是否语义一致、可追踪、无明显冲突，且 DR 对 OR 的分解关系清晰",
+        "name": "需求映射一致性",
+        "weight": 6,
+        "description": "OR 与各 DR 是否语义一致、范围匹配、无明显偏题或冲突，且 DS/TDR/TDS 与该链路一致",
     },
     {
         "key": "cross_exceptions",
-        "name": "需求分解与追踪-异常与边界场景",
+        "name": "需求追踪与异常覆盖",
         "weight": 4,
-        "description": "是否在 OR 到 DR 的分解结果中覆盖异常输入、失败路径、日志、回滚、告警等边界场景",
+        "description": "OR 到 DR 的追踪关系是否清晰，且异常输入、失败路径和边界场景是否在分解结果中有明确落点",
     },
 ]
 

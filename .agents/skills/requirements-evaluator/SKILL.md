@@ -59,10 +59,10 @@ Default weight profile:
 - `DR-无歧义性`: 5
 - `DR-性能需求`: 3
 - `DR-硬件分析`: 2
-- `需求分解与追踪-范围与边界`: 6
-- `需求分解与追踪-假设与依赖`: 6
-- `需求分解与追踪-一致性与可追踪性`: 4
-- `需求分解与追踪-异常与边界场景`: 4
+- `需求分解完整性`: 6
+- `需求分解边界清晰度`: 4
+- `需求映射一致性`: 6
+- `需求追踪与异常覆盖`: 4
 
 Dimension intent:
 
@@ -86,14 +86,14 @@ Dimension intent:
   Check whether relevant performance expectations are stated.
 - `DR-硬件分析`
   Check whether hardware or resource assumptions are stated when relevant.
-- `需求分解与追踪-范围与边界`
-  Check whether the OR-to-DR decomposition defines inclusions, exclusions, and main behavior boundaries.
-- `需求分解与追踪-假设与依赖`
-  Check whether decomposition assumptions, dependencies, upstream inputs, or external conditions are visible.
-- `需求分解与追踪-一致性与可追踪性`
-  Check whether OR, DR, DS, TDR, and TDS align and trace cleanly, and whether each DR clearly maps back to the OR.
-- `需求分解与追踪-异常与边界场景`
-  Check whether invalid input, failures, rollback, timeout, conflict, logging, or edge conditions are covered in the decomposition result.
+- `需求分解完整性`
+  Check whether the key capability points in the OR are fully covered by its DR set and whether there are obvious decomposition gaps.
+- `需求分解边界清晰度`
+  Check whether each DR has a clear responsibility boundary and whether the decomposition avoids overlap, duplication, or ambiguous ownership.
+- `需求映射一致性`
+  Check whether OR, DR, DS, TDR, and TDS align semantically and whether each DR actually implements the OR rather than drifting or conflicting.
+- `需求追踪与异常覆盖`
+  Check whether the OR-to-DR trace is clear and whether exception paths, invalid input, and edge scenarios have explicit landing points in the decomposition.
 
 Apply these rules:
 - Prefer weighted scoring out of 100.

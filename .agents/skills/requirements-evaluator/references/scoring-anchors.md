@@ -71,15 +71,45 @@ Use this file to stabilize scoring decisions. Score with the 100-point structure
 - `Missing`
   - Relies on vague wording such as "support", "reasonable", "related", or "complete" without additional definition.
 
-### 需求分解与追踪-一致性与可追踪性
+### 需求分解完整性
 
 - `Meets`
-  - Coverage from the OR to its DRs is clear.
-  - DRs do not show obvious omission, duplication, or contradiction, and each DR maps back to the OR.
+  - The key capability points in the OR are all covered by one or more DRs.
+  - The DR set is sufficient to support implementation and testing of the OR.
 - `Weak`
-  - The overall mapping is mostly visible, but there are omissions, overlaps, duplicate coverage, or weak mapping quality.
+  - The main capability is covered, but some expected sub-capabilities are missing or only partially decomposed.
 - `Missing`
-  - The OR-to-DR relationship is unclear, so decomposition completeness and consistency cannot be confirmed.
+  - Major capability points in the OR have no clear DR coverage.
+
+### 需求分解边界清晰度
+
+- `Meets`
+  - Each DR has a clear responsibility boundary.
+  - The DR set avoids obvious overlap, duplication, or ownership ambiguity.
+- `Weak`
+  - Most DR boundaries are understandable, but some responsibilities overlap or are not sharply separated.
+- `Missing`
+  - DR boundaries are blurred, heavily overlapping, or too ambiguous to support clean implementation ownership.
+
+### 需求映射一致性
+
+- `Meets`
+  - The OR-to-DR mapping is semantically coherent.
+  - DRs do not show obvious drift, contradiction, or inconsistent interpretation of the OR.
+- `Weak`
+  - The overall mapping is mostly visible, but some DRs are too narrow, too broad, partially off-topic, or weakly mapped.
+- `Missing`
+  - The OR-to-DR relationship is inconsistent or unclear, so the decomposition cannot be trusted as an accurate implementation of the OR.
+
+### 需求追踪与异常覆盖
+
+- `Meets`
+  - The OR-to-DR trace is clear.
+  - Exception paths, invalid input, failure behavior, or key edge scenarios are explicitly represented in the decomposition result.
+- `Weak`
+  - The trace is mostly visible, but exception or edge-case handling is incomplete or only weakly represented.
+- `Missing`
+  - The trace is unclear and exception or edge-case handling has no clear decomposition landing point.
 
 ## Red-Line Rules
 

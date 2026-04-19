@@ -162,7 +162,7 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
                     ],
                     "cross_dimension_view": {
                         "cross_dependencies": {
-                            "name": "需求分解与追踪-假设与依赖",
+                            "name": "需求分解边界清晰度",
                             "mapped_fields": ["假设和依赖信息"],
                             "evidence_fields": {},
                             "missing_fields": ["假设和依赖信息"],
