@@ -34,10 +34,15 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
                 "OR需求编号": ["DOR-1"],
                 "OR需求名称*": ["DNS配置"],
                 "OR需求描述*": ["支持 DNS 服务器配置。"],
+                "需求来源": ["客户定制"],
+                "国家/区域": ["中国"],
                 "DR需求编号": ["DDR-1"],
                 "DR需求描述*": ["IP 地址必填，分段输入，范围 0-255。"],
                 "参数规格": ["0-255"],
                 "系统测试要点": ["校验必填项和非法 IP"],
+                "DS需求名称*": ["DNS配置数据规格"],
+                "规格分类": ["接口规格"],
+                "所属子系统": ["网络管理"],
             },
         )
 
@@ -54,7 +59,14 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertIn("raw_fields", packet["items"][0])
         self.assertIn("dimension_view", packet["items"][0])
         self.assertEqual(packet["items"][0]["core_fields"]["dr_desc"], "IP 地址必填，分段输入，范围 0-255。")
+        self.assertEqual(packet["items"][0]["core_fields"]["requirement_source"], "客户定制")
+        self.assertEqual(packet["items"][0]["core_fields"]["region"], "中国")
+        self.assertEqual(packet["items"][0]["core_fields"]["spec_type"], "接口规格")
+        self.assertEqual(packet["items"][0]["core_fields"]["subsystem"], "网络管理")
         self.assertIn("dr_testability", packet["items"][0]["dimension_view"])
+        self.assertEqual(packet["items"][0]["dimension_view"]["or_constraints"]["evidence_fields"]["国家/区域"], ["中国"])
+        self.assertEqual(packet["items"][0]["dimension_view"]["dr_technical"]["evidence_fields"]["规格分类"], ["接口规格"])
+        self.assertEqual(packet["items"][0]["dimension_view"]["cross_dependencies"]["evidence_fields"]["所属子系统"], ["网络管理"])
 
     def test_dimension_view_is_based_on_rubric_relevance_not_on_non_empty_frequency(self):
         record = self.module.RowRecord(
