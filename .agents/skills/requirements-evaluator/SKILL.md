@@ -217,6 +217,7 @@ Behavior:
 - expands merged cells so OR fields remain visible on follower DR rows
 - reads JSON arrays or objects with a top-level list field
 - groups the packet by OR and nests all linked DR entries under that OR
+- prebuilds a scoring skeleton for each OR, including OR score slots, DR score slots, DR average slot, decomposition quality slot, and review decision slots
 - writes a review packet for the model
 - does not generate the final scores or the final report on its own
 
@@ -248,6 +249,7 @@ Preferred flow:
 3. Ask the model to produce the final Chinese evaluation report.
 4. State the actual `sheet_name` from the packet when the input is Excel.
 5. Report scores by OR unit, not by raw row.
+6. Fill the prebuilt scoring skeleton from the packet instead of inventing a new report structure.
 
 Recommended prompt pattern:
 

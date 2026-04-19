@@ -366,6 +366,48 @@ def build_raw_fields(record: RowRecord) -> Dict[str, List[str]]:
     }
 
 
+def build_or_review_skeleton(score_weights: Dict[str, int], dr_items: Sequence[Dict[str, object]]) -> Dict[str, object]:
+    return {
+        "or_total_score": {
+            "max_score": score_weights["or_total_weight"] + score_weights["dr_total_weight"] + score_weights["cross_total_weight"],
+            "score": None,
+            "grade": None,
+            "review_conclusion": None,
+        },
+        "or_part": {
+            "max_score": score_weights["or_total_weight"],
+            "score": None,
+            "dimension_scores": [],
+        },
+        "dr_parts": [
+            {
+                "dr_id": item["id"],
+                "dr_name": item["name"],
+                "max_score": score_weights["dr_total_weight"],
+                "score": None,
+                "dimension_scores": [],
+            }
+            for item in dr_items
+        ],
+        "dr_average": {
+            "max_score": score_weights["dr_total_weight"],
+            "score": None,
+        },
+        "decomposition_quality": {
+            "max_score": score_weights["cross_total_weight"],
+            "score": None,
+            "dimension_scores": [],
+        },
+        "review_decision": {
+            "design_review_readiness": None,
+            "development_readiness": None,
+            "test_design_readiness": None,
+            "blocking_issues": [],
+            "triggered_red_line_rules": [],
+        },
+    }
+
+
 def group_records_by_or(records: Sequence[RowRecord]) -> List[List[RowRecord]]:
     groups: List[List[RowRecord]] = []
     current: List[RowRecord] = []
@@ -448,6 +490,7 @@ def build_review_packet(
     dr_dimensions = filter_dimensions(dimensions, "dr_")
     cross_dimensions = filter_dimensions(dimensions, "cross_")
 
+    score_weights = score_structure(dimensions)
     groups = []
     total_dr_count = 0
     for or_records in group_records_by_or(records):
@@ -492,6 +535,7 @@ def build_review_packet(
                 "dr_items": dr_items,
                 "dr_count": len(dr_items),
                 "cross_dimension_view": build_dimension_view(merged_or_record, cross_dimensions),
+                "review_skeleton": build_or_review_skeleton(score_weights, dr_items),
                 "raw_fields": raw_fields,
             }
         )
@@ -499,7 +543,7 @@ def build_review_packet(
     return {
         "input_path": str(input_path),
         "source_info": dict(source_info or {}),
-        "score_structure": score_structure(dimensions),
+        "score_structure": score_weights,
         "item_count": len(groups),
         "or_count": len(groups),
         "dr_count": total_dr_count,
@@ -588,6 +632,14 @@ def render_review_packet_markdown(packet: Dict[str, object]) -> str:
                     lines.append(f"  - evidence {field}: {' | '.join(values)}")
             if dimension["missing_fields"]:
                 lines.append(f"  - missing: {', '.join(dimension['missing_fields'])}")
+        lines.append("")
+        lines.append("评分骨架：")
+        lines.append(f"- OR总分槽位: {item['review_skeleton']['or_total_score']['max_score']}")
+        lines.append(f"- OR部分槽位: {item['review_skeleton']['or_part']['max_score']}")
+        lines.append(f"- DR平均分槽位: {item['review_skeleton']['dr_average']['max_score']}")
+        lines.append(f"- 需求分解与追踪质量槽位: {item['review_skeleton']['decomposition_quality']['max_score']}")
+        lines.append(f"- DR评分槽位数: {len(item['review_skeleton']['dr_parts'])}")
+        lines.append(f"- 评审决策槽位: design/development/test readiness, blocking issues, red-line rules")
         lines.append("")
         lines.append("聚合原始字段：")
         for key, values in item["raw_fields"].items():

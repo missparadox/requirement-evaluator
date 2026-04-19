@@ -91,6 +91,11 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertEqual(packet["groups"][0]["or_core_fields"]["requirement_source"], "客户定制")
         self.assertEqual(packet["groups"][0]["or_core_fields"]["region"], "中国")
         self.assertEqual(packet["groups"][0]["dr_count"], 2)
+        self.assertEqual(packet["groups"][0]["review_skeleton"]["or_total_score"]["max_score"], 100)
+        self.assertEqual(packet["groups"][0]["review_skeleton"]["or_part"]["max_score"], 40)
+        self.assertEqual(packet["groups"][0]["review_skeleton"]["dr_average"]["max_score"], 40)
+        self.assertEqual(packet["groups"][0]["review_skeleton"]["decomposition_quality"]["max_score"], 20)
+        self.assertEqual(len(packet["groups"][0]["review_skeleton"]["dr_parts"]), 2)
         self.assertEqual(packet["groups"][0]["dr_items"][0]["core_fields"]["dr_desc"], "支持 Ping 检测。")
         self.assertEqual(packet["groups"][0]["dr_items"][0]["core_fields"]["spec_type"], "接口规格")
         self.assertEqual(packet["groups"][0]["dr_items"][0]["core_fields"]["subsystem"], "网络管理")
@@ -168,6 +173,20 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
                             "missing_fields": ["假设和依赖信息"],
                         }
                     },
+                    "review_skeleton": {
+                        "or_total_score": {"max_score": 100, "score": None, "grade": None, "review_conclusion": None},
+                        "or_part": {"max_score": 40, "score": None, "dimension_scores": []},
+                        "dr_parts": [{"dr_id": "DDR-1", "dr_name": "Ping检测", "max_score": 40, "score": None, "dimension_scores": []}],
+                        "dr_average": {"max_score": 40, "score": None},
+                        "decomposition_quality": {"max_score": 20, "score": None, "dimension_scores": []},
+                        "review_decision": {
+                            "design_review_readiness": None,
+                            "development_readiness": None,
+                            "test_design_readiness": None,
+                            "blocking_issues": [],
+                            "triggered_red_line_rules": [],
+                        },
+                    },
                     "raw_fields": {"OR需求编号": ["DOR-1"], "DR需求描述*": ["IP 0-255"]},
                 }
             ],
@@ -182,6 +201,8 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertIn("- sheet_name: `Sheet1`", rendered)
         self.assertIn("DR评审单元", rendered)
         self.assertIn("需求分解与追踪维度视图", rendered)
+        self.assertIn("评分骨架", rendered)
+        self.assertIn("- OR总分槽位: 100", rendered)
         self.assertNotIn("总分:", rendered)
         self.assertNotIn("等级:", rendered)
 
@@ -228,6 +249,7 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertEqual(packet["dr_count"], 2)
         self.assertEqual(packet["source_info"]["input_format"], "json")
         self.assertEqual(packet["groups"][0]["name"], "网络检测与诊断")
+        self.assertIn("review_skeleton", packet["groups"][0])
 
     def test_read_excel_records_active_sheet_name_in_source_info(self):
         try:
