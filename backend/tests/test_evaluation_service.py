@@ -278,8 +278,11 @@ def test_runner_writes_report_and_marks_success(tmp_path: Path) -> None:
     store = EvaluationStore(tmp_path)
     store.create_evaluation(
         evaluation_id="eval_001",
-        filename="requirements.csv",
-        file_bytes="OR需求编号,OR需求名称*,OR需求描述*\nD1,N,D\n".encode("utf-8"),
+        filename="requirements.json",
+        file_bytes=json.dumps(
+            [{"OR需求编号": "D1", "OR需求名称*": "N", "OR需求描述*": "D"}],
+            ensure_ascii=False,
+        ).encode("utf-8"),
     )
     runner = EvaluationRunner(store=store, model_client=StaticModelClient())
     runner.run("eval_001")

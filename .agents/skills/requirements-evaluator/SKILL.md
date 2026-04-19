@@ -63,6 +63,37 @@ This skill is self-contained. The default evaluation framework is fully defined 
    - writing the complete report to the default report path and telling the user where it is, while also providing a concise executive summary in the response.
    Do not ask the user whether they want the formal report after they already asked for evaluation.
 
+## Context Budget Rules
+
+When the target model context window is limited, do not load the full packet if that risks truncation.
+
+Use this budget policy by default for models with a 250k-token limit:
+
+- reserve 25k tokens for system, developer, and tool-call overhead
+- reserve 20k to 40k tokens for the model response
+- reserve 10k to 20k tokens for this skill, scoring anchors, and report template
+- use the remaining budget for requirement evidence packets only
+
+Practical consequence:
+
+- do not assume a single full review packet is safe for a 250k-token model
+- prefer shard mode once the full packet looks too large to fit comfortably
+- target shard evidence payloads that stay well below the remaining evidence budget
+
+Shard mode rules:
+
+1. Read the packet manifest first.
+2. Evaluate one shard at a time.
+3. Write a structured partial result for each shard before moving on.
+4. Aggregate the partial results into the final formal report.
+5. Never silently drop OR coverage to fit context.
+
+When shard mode is used:
+
+- every OR must still appear in either a shard-level detailed result or the final all-OR score table
+- the final report must explicitly say that shard mode was used
+- the final aggregation step must not re-read the full raw workbook unless strictly necessary
+
 ## Scoring Rules
 
 ### Default 100-Point Rubric
@@ -249,7 +280,8 @@ Behavior:
 - reads JSON arrays or objects with a top-level list field
 - groups the packet by OR and nests all linked DR entries under that OR
 - prebuilds a scoring skeleton for each OR, including OR score slots, DR score slots, DR average slot, decomposition quality slot, and review decision slots
-- writes a review packet for the model
+- can write a single full review packet for the model
+- can also write a shard manifest plus multiple shard packets for limited-context model runs
 - does not generate the final scores or the final report on its own
 
 ## Dependencies
@@ -273,17 +305,26 @@ If a dependency is missing:
 
 If the input is tabular, generate a review packet first, then ask the model to perform the final review.
 
-Preferred flow:
+Preferred flow for small inputs:
 
-1. Run the script to build a review packet.
+1. Run the script to build a full review packet.
 2. Load the packet, this `SKILL.md`, and the report template.
 3. Ask the model to produce the final Chinese evaluation report.
 4. State the actual `sheet_name` from the packet when the input is Excel.
 5. Report scores by OR unit, not by raw row.
 6. Fill the prebuilt scoring skeleton from the packet instead of inventing a new report structure.
 7. Deliver the report in the same turn without waiting for extra confirmation from the user.
-8. When the input is large, prefer "complete all-OR score table + selected detailed scorecards" over omitting OR coverage or asking the user to choose a shorter format.
+8. When the input is large but still fits, prefer "complete all-OR score table + selected detailed scorecards" over omitting OR coverage or asking the user to choose a shorter format.
 9. When writing the formal report to disk, use `reports/<input-file-stem>.md` by default.
+
+Preferred flow for limited-context or large inputs:
+
+1. Run the script in shard mode to build a manifest and shard packets.
+2. Load the manifest first to see shard boundaries, `sheet_name`, OR count, and DR count.
+3. Review one shard at a time with the model, using the same rubric and anchors.
+4. Save a structured partial review result for each shard.
+5. Aggregate all shard results into one final Chinese Markdown report.
+6. In the final report, state that shard mode was used and still include complete all-OR coverage.
 
 Recommended prompt pattern:
 
@@ -318,6 +359,71 @@ For each OR:
 Then summarize cross-OR weaknesses, strongest examples, the overall average score across all OR totals, and whether the set is ready for implementation and testing.
 ```
 
+Recommended prompt pattern for shard mode:
+
+```text
+Use $requirements-evaluator at <skill-path>.
+
+Read the packet manifest at <manifest-path>.
+Read one shard packet at <shard-path>.
+Use the rubric defined in <skill-path>/SKILL.md as the scoring basis.
+Read the scoring anchors at <skill-path>/references/scoring-anchors.md.
+
+Evaluate only the OR units present in the shard packet.
+Output a structured partial result that includes:
+- shard_id
+- sheet_name when present
+- per-OR scores
+- per-OR conclusions
+- per-OR readiness decisions
+- triggered red-line rules
+- cross-shard recurring weaknesses observed in this shard
+
+Do not produce the final full report yet.
+```
+
+Recommended partial result fields:
+
+- `shard_id`
+- `sheet_name`
+- `cross_shard_notes.weak_dimensions`
+- `or_results[*].or_id`
+- `or_results[*].or_name`
+- `or_results[*].or_total_score`
+- `or_results[*].grade`
+- `or_results[*].or_part_score`
+- `or_results[*].dr_scores`
+- `or_results[*].dr_average_score`
+- `or_results[*].traceability_score`
+- `or_results[*].review_conclusion`
+- `or_results[*].design_review_readiness`
+- `or_results[*].development_readiness`
+- `or_results[*].test_design_readiness`
+- `or_results[*].blocking_issues`
+- `or_results[*].triggered_red_line_rules`
+- `or_results[*].evidence_bullets`
+- `or_results[*].red_flags`
+- `or_results[*].missing_items`
+- `or_results[*].revision_actions`
+
+## End-To-End Automation
+
+For a no-human-intervention run, use the full automation script:
+
+```bash
+python3 scripts/run_evaluation.py \
+  --input /path/to/input-file.xlsx \
+  --report-output /path/to/report.md
+```
+
+Recommended automation behavior:
+
+1. Build shard packets and a manifest.
+2. Ask the model to review each shard and write structured partial results.
+3. Aggregate the partial results mechanically.
+4. Ask the model to write the final Chinese Markdown report from the aggregate result.
+5. Write the final report to `reports/<input-file-stem>.md` unless another path was requested.
+
 ## Notes
 
 - Keep this skill body concise. Put detailed criteria in references.
@@ -326,3 +432,4 @@ Then summarize cross-OR weaknesses, strongest examples, the overall average scor
 - Create the `reports/` directory when needed before writing the formal report file.
 - Treat the script output as context assembly, not as the verdict.
 - If the input is large, summarize repetitive low-signal rows and spend more space on the highest-risk or highest-value requirements.
+- For 250k-token models, default to shard mode unless the full packet is clearly safe.

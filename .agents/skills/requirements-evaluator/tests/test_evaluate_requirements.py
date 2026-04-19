@@ -251,6 +251,116 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertEqual(packet["groups"][0]["name"], "网络检测与诊断")
         self.assertIn("review_skeleton", packet["groups"][0])
 
+    def test_build_packet_manifest_splits_groups_by_shard_size(self):
+        record_1 = self.module.RowRecord(
+            index=1,
+            grouped={
+                "OR需求编号": ["DOR-1"],
+                "OR需求名称*": ["需求1"],
+                "OR需求描述*": ["描述1"],
+                "DR需求编号": ["DDR-1"],
+                "DR需求名称*": ["设计1"],
+                "DR需求描述*": ["设计描述1"],
+            },
+        )
+        record_2 = self.module.RowRecord(
+            index=2,
+            grouped={
+                "OR需求编号": ["DOR-2"],
+                "OR需求名称*": ["需求2"],
+                "OR需求描述*": ["描述2"],
+                "DR需求编号": ["DDR-2"],
+                "DR需求名称*": ["设计2"],
+                "DR需求描述*": ["设计描述2"],
+            },
+        )
+        record_3 = self.module.RowRecord(
+            index=3,
+            grouped={
+                "OR需求编号": ["DOR-3"],
+                "OR需求名称*": ["需求3"],
+                "OR需求描述*": ["描述3"],
+                "DR需求编号": ["DDR-3"],
+                "DR需求名称*": ["设计3"],
+                "DR需求描述*": ["设计描述3"],
+            },
+        )
+
+        packet = self.module.build_review_packet(
+            input_path=Path("requirements.json"),
+            dimensions=self.module.DEFAULT_DIMENSIONS,
+            records=[record_1, record_2, record_3],
+            source_info={"input_format": "json"},
+        )
+        manifest = self.module.build_packet_manifest(packet, shard_size=2, max_chars_per_shard=None)
+        shard_packets = self.module.build_shard_packets(packet, manifest)
+
+        self.assertEqual(manifest["shard_count"], 2)
+        self.assertEqual(manifest["shards"][0]["or_ids"], ["DOR-1", "DOR-2"])
+        self.assertEqual(manifest["shards"][1]["or_ids"], ["DOR-3"])
+        self.assertEqual(shard_packets[0]["shard_id"], "shard-001")
+        self.assertEqual(shard_packets[0]["or_count"], 2)
+        self.assertEqual(shard_packets[1]["or_count"], 1)
+        self.assertEqual(shard_packets[0]["groups"][0]["id"], "DOR-1")
+
+    def test_cli_shard_mode_writes_manifest_and_shards(self):
+        rows = [
+            {
+                "OR需求编号": "DOR-1",
+                "OR需求名称*": "需求1",
+                "OR需求描述*": "描述1",
+                "DR需求编号": "DDR-1",
+                "DR需求名称*": "设计1",
+                "DR需求描述*": "设计描述1",
+            },
+            {
+                "OR需求编号": "DOR-2",
+                "OR需求名称*": "需求2",
+                "OR需求描述*": "描述2",
+                "DR需求编号": "DDR-2",
+                "DR需求名称*": "设计2",
+                "DR需求描述*": "设计描述2",
+            },
+            {
+                "OR需求编号": "DOR-3",
+                "OR需求名称*": "需求3",
+                "OR需求描述*": "描述3",
+                "DR需求编号": "DDR-3",
+                "DR需求名称*": "设计3",
+                "DR需求描述*": "设计描述3",
+            },
+        ]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            input_path = tmp / "requirements.json"
+            output_dir = tmp / "packets"
+            input_path.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
+
+            self.module.main(
+                [
+                    "--input",
+                    str(input_path),
+                    "--output",
+                    str(output_dir),
+                    "--format",
+                    "json",
+                    "--shard-size",
+                    "2",
+                    "--emit-manifest",
+                ]
+            )
+
+            manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
+            shard_1 = json.loads((output_dir / "shard-001.json").read_text(encoding="utf-8"))
+            shard_2 = json.loads((output_dir / "shard-002.json").read_text(encoding="utf-8"))
+
+        self.assertEqual(manifest["shard_count"], 2)
+        self.assertEqual(manifest["or_count"], 3)
+        self.assertEqual(shard_1["packet_type"], "review_packet_shard")
+        self.assertEqual(shard_1["or_count"], 2)
+        self.assertEqual(shard_2["or_count"], 1)
+        self.assertEqual(shard_2["groups"][0]["id"], "DOR-3")
+
     def test_read_excel_records_active_sheet_name_in_source_info(self):
         try:
             import openpyxl

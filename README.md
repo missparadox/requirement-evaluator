@@ -195,6 +195,80 @@ Expected output:
 
 - a Chinese Markdown evaluation report
 
+### Full Automatic Evaluation
+
+For large inputs or limited-context models, use the full sharded automation pipeline instead of loading one full packet into the model at once.
+
+The full pipeline script is:
+
+```bash
+./.venv/bin/python .agents/skills/requirements-evaluator/scripts/run_evaluation.py \
+  --input /path/to/input-file.xlsx \
+  --report-output /path/to/report.md
+```
+
+What it does:
+
+- reads the input file and expands merged Excel cells
+- builds a packet manifest plus multiple shard packets
+- sends each shard to the configured model provider
+- writes one structured `partial-review-*.json` per shard
+- aggregates shard outputs into one `aggregate.json`
+- generates the final Chinese Markdown report automatically
+
+Typical outputs inside the working directory:
+
+- `packets/manifest.json`
+- `packets/shard-001.json`, `packets/shard-002.json`, ...
+- `partials/partial-review-shard-001.json`, ...
+- `aggregate.json`
+- final report file
+
+Example using this repository's sample input:
+
+```bash
+./.venv/bin/python .agents/skills/requirements-evaluator/scripts/run_evaluation.py \
+  --input requirements.xlsm \
+  --report-output reports/requirements.md
+```
+
+For local dry-runs without calling a remote model, force the static provider:
+
+```bash
+./.venv/bin/python .agents/skills/requirements-evaluator/scripts/run_evaluation.py \
+  --input requirements.xlsm \
+  --report-output reports/requirements.md \
+  --provider static
+```
+
+Useful options:
+
+- `--work-dir`
+  choose where manifest, shard packets, partial reviews, and aggregate output are written
+- `--shard-size`
+  maximum OR units per shard, default `8`
+- `--max-chars-per-shard`
+  approximate shard size cap, default `120000`
+- `--provider`
+  `auto` or `static`; `auto` uses the runtime selection rules below
+
+### Provider Selection
+
+The standalone automation script reuses the backend model client selection logic.
+
+Current priority in `--provider auto` mode:
+
+- `OPENAI_API_KEY` present -> OpenAI Responses API
+- otherwise `ZHIPU_API_KEY` present -> Zhipu via OpenAI-compatible client
+- otherwise `codex` available on `PATH` -> `codex exec`
+- otherwise fall back only when `--provider static` is explicitly selected
+
+Practical consequence:
+
+- if `codex` is installed locally and no API key is configured, automatic runs will use `codex exec`
+- if you want a deterministic local no-network run, pass `--provider static`
+- if you want a real remote run, set `OPENAI_API_KEY` or `ZHIPU_API_KEY`
+
 ## Integrating the Skill
 
 The repository keeps the evaluator rubric and template in the skill directory so coding agents can invoke the same review standard both inside and outside service mode.

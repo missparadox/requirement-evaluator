@@ -554,6 +554,96 @@ def build_review_packet(
     }
 
 
+def estimate_group_chars(group: Dict[str, object]) -> int:
+    payload = json.dumps(group, ensure_ascii=False, sort_keys=True)
+    return len(payload)
+
+
+def build_packet_manifest(
+    packet: Dict[str, object],
+    *,
+    shard_size: int,
+    max_chars_per_shard: int | None = None,
+) -> Dict[str, object]:
+    groups = packet["groups"]
+    shards = []
+    current_groups: List[Dict[str, object]] = []
+    current_chars = 0
+
+    def flush() -> None:
+        nonlocal current_groups, current_chars
+        if not current_groups:
+            return
+        shard_index = len(shards) + 1
+        shard_id = f"shard-{shard_index:03d}"
+        shards.append(
+            {
+                "shard_id": shard_id,
+                "or_ids": [group["id"] for group in current_groups],
+                "or_names": [group["name"] for group in current_groups],
+                "or_count": len(current_groups),
+                "dr_count": sum(int(group["dr_count"]) for group in current_groups),
+                "estimated_chars": current_chars,
+            }
+        )
+        current_groups = []
+        current_chars = 0
+
+    for group in groups:
+        group_chars = estimate_group_chars(group)
+        would_exceed_count = bool(current_groups) and len(current_groups) >= shard_size
+        would_exceed_chars = bool(
+            current_groups
+            and max_chars_per_shard is not None
+            and current_chars + group_chars > max_chars_per_shard
+        )
+        if would_exceed_count or would_exceed_chars:
+            flush()
+        current_groups.append(group)
+        current_chars += group_chars
+    flush()
+
+    return {
+        "input_path": packet["input_path"],
+        "source_info": packet.get("source_info", {}),
+        "or_count": packet["or_count"],
+        "dr_count": packet["dr_count"],
+        "dimension_count": packet["dimension_count"],
+        "score_structure": packet["score_structure"],
+        "shard_count": len(shards),
+        "shard_size": shard_size,
+        "max_chars_per_shard": max_chars_per_shard,
+        "shards": shards,
+    }
+
+
+def build_shard_packets(
+    packet: Dict[str, object],
+    manifest: Dict[str, object],
+) -> List[Dict[str, object]]:
+    groups_by_id = {group["id"]: group for group in packet["groups"]}
+    shard_packets = []
+    for shard in manifest["shards"]:
+        shard_groups = [groups_by_id[group_id] for group_id in shard["or_ids"]]
+        shard_packets.append(
+            {
+                "packet_type": "review_packet_shard",
+                "shard_id": shard["shard_id"],
+                "input_path": packet["input_path"],
+                "source_info": packet.get("source_info", {}),
+                "score_structure": packet["score_structure"],
+                "item_count": len(shard_groups),
+                "or_count": len(shard_groups),
+                "dr_count": sum(int(group["dr_count"]) for group in shard_groups),
+                "dimension_count": packet["dimension_count"],
+                "dimensions": packet["dimensions"],
+                "header_summary": packet["header_summary"],
+                "groups": shard_groups,
+            }
+        )
+    return shard_packets
+
+
 def render_review_packet_markdown(packet: Dict[str, object]) -> str:
     lines = []
     lines.append("# 需求评审任务包")
@@ -648,11 +738,59 @@ def render_review_packet_markdown(packet: Dict[str, object]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_manifest_markdown(manifest: Dict[str, object]) -> str:
+    lines = []
+    lines.append("# 需求评审任务包清单")
+    lines.append("")
+    lines.append("本文件用于受限上下文模型的分片评审流程。先读清单，再按 shard 逐片评审。")
+    lines.append("")
+    lines.append("## 数据概览")
+    lines.append("")
+    lines.append(f"- 输入文件: `{manifest['input_path']}`")
+    for key, value in manifest.get("source_info", {}).items():
+        lines.append(f"- {key}: `{value}`")
+    lines.append(f"- OR条目数: {manifest['or_count']}")
+    lines.append(f"- DR条目数: {manifest['dr_count']}")
+    lines.append(f"- 分片数: {manifest['shard_count']}")
+    lines.append(f"- 每片目标 OR 数: {manifest['shard_size']}")
+    if manifest.get("max_chars_per_shard") is not None:
+        lines.append(f"- 每片字符上限: {manifest['max_chars_per_shard']}")
+    lines.append("")
+    lines.append("## 分片清单")
+    lines.append("")
+    for shard in manifest["shards"]:
+        lines.append(f"### {shard['shard_id']}")
+        lines.append("")
+        lines.append(f"- OR数量: {shard['or_count']}")
+        lines.append(f"- DR数量: {shard['dr_count']}")
+        lines.append(f"- 估算字符数: {shard['estimated_chars']}")
+        lines.append(f"- OR编号: {', '.join(shard['or_ids'])}")
+        lines.append("")
+    return "\n".join(lines) + "\n"
+
+
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Build a review packet for LLM-based requirement evaluation.")
     parser.add_argument("--input", required=True, help="Path to the input Excel/JSON file.")
     parser.add_argument("--output", required=True, help="Path to write the review packet.")
     parser.add_argument("--format", choices=("markdown", "json"), default="markdown", help="Output packet format.")
+    parser.add_argument(
+        "--shard-size",
+        type=int,
+        default=0,
+        help="When greater than 0, emit shard packets with at most this many OR units per shard.",
+    )
+    parser.add_argument(
+        "--max-chars-per-shard",
+        type=int,
+        default=0,
+        help="Optional approximate character cap per shard when shard mode is enabled.",
+    )
+    parser.add_argument(
+        "--emit-manifest",
+        action="store_true",
+        help="When shard mode is enabled, also write a manifest file describing the shards.",
+    )
     args = parser.parse_args(argv)
 
     input_path = Path(args.input).expanduser().resolve()
@@ -666,6 +804,31 @@ def main(argv: Sequence[str] | None = None) -> None:
         read_result.records,
         source_info=read_result.source_info,
     )
+
+    if args.shard_size > 0:
+        output_path.mkdir(parents=True, exist_ok=True)
+        max_chars_per_shard = args.max_chars_per_shard if args.max_chars_per_shard > 0 else None
+        manifest = build_packet_manifest(packet, shard_size=args.shard_size, max_chars_per_shard=max_chars_per_shard)
+        shard_packets = build_shard_packets(packet, manifest)
+
+        for shard_packet in shard_packets:
+            shard_output = output_path / f"{shard_packet['shard_id']}.{args.format}"
+            if args.format == "json":
+                shard_output.write_text(json.dumps(shard_packet, ensure_ascii=False, indent=2), encoding="utf-8")
+            else:
+                shard_output.write_text(render_review_packet_markdown(shard_packet), encoding="utf-8")
+
+        if args.emit_manifest:
+            manifest_output = output_path / f"manifest.{args.format}"
+            if args.format == "json":
+                manifest_output.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+            else:
+                manifest_output.write_text(render_manifest_markdown(manifest), encoding="utf-8")
+
+        print(f"已生成分片评审任务包目录: {output_path}")
+        print(f"条目数: {packet['item_count']}")
+        print(f"分片数: {manifest['shard_count']}")
+        return
 
     if args.format == "json":
         output_path.write_text(json.dumps(packet, ensure_ascii=False, indent=2), encoding="utf-8")
