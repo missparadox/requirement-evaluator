@@ -18,6 +18,8 @@ This skill is self-contained. The default evaluation framework is fully defined 
    Ignore all other sheets unless the user explicitly asks for a different sheet.
    Expand merged-cell evidence before review so that blank follower rows still inherit the OR fields they belong to.
    Preserve the original field names and note repeated headers instead of silently dropping them.
+   Only OR units whose requirement category is `功能` participate in scoring.
+   Use the review packet's `all_category_counts` field to report all categories, including excluded non-functional categories.
 
 2. Build the rubric before scoring.
    Start with the default rubric defined in this file.
@@ -38,6 +40,7 @@ This skill is self-contained. The default evaluation framework is fully defined 
    Include:
    - methodology and data source
    - overall distribution and average score
+   - OR requirement category statistics (from the review packet's `all_category_counts` field): list every category with its OR count, percentage share, and whether it was excluded from evaluation, in a table format; explain excluded categories and their exclusion basis
    - per-requirement scorecards
    - recurring weak dimensions
    - prioritized recommendations
@@ -73,16 +76,14 @@ Default weight profile:
 - `OR-应用场景`: 12
 - `OR-用户价值`: 10
 - `OR-约束和限制`: 6
-- `DR-安全分析`: 10
+- `DR-安全分析`: 5
 - `DR-技术描述`: 10
 - `DR-可测试性`: 10
-- `DR-无歧义性`: 5
-- `DR-性能需求`: 3
-- `DR-硬件分析`: 2
-- `需求分解完整性`: 6
-- `需求分解边界清晰度`: 4
-- `需求映射一致性`: 6
-- `需求追踪与异常覆盖`: 4
+- `DR-无歧义性`: 8
+- `DR-异常描述`: 7
+- `需求分解完整性`: 7
+- `需求分解边界清晰度`: 6
+- `需求映射一致性`: 7
 
 Dimension intent:
 
@@ -102,18 +103,14 @@ Dimension intent:
   Check whether test cases or verification steps can be derived directly.
 - `DR-无歧义性`
   Check whether parameters, states, and expected behavior are precise rather than vague.
-- `DR-性能需求`
-  Check whether relevant performance expectations are stated.
-- `DR-硬件分析`
-  Check whether hardware or resource assumptions are stated when relevant.
+- `DR-异常描述`
+  Check whether exception paths, error conditions, invalid input handling, failure behavior, and edge scenarios are explicitly described with clear triggers and expected responses.
 - `需求分解完整性`
   Check whether the key capability points in the OR are fully covered by its DR set and whether there are obvious decomposition gaps.
 - `需求分解边界清晰度`
   Check whether each DR has a clear responsibility boundary and whether the decomposition avoids overlap, duplication, or ambiguous ownership.
 - `需求映射一致性`
   Check whether OR, DR, DS, TDR, and TDS align semantically and whether each DR actually implements the OR rather than drifting or conflicting.
-- `需求追踪与异常覆盖`
-  Check whether the OR-to-DR trace is clear and whether exception paths, invalid input, and edge scenarios have explicit landing points in the decomposition.
 
 Apply these rules:
 - Prefer weighted scoring out of 100.
@@ -188,7 +185,7 @@ For each OR unit:
    Mark `N/A` only when the OR or DR genuinely does not call for that dimension.
    Write one short reason per dimension.
 
-6. Make a readiness judgment.
+6. Make an implementation and test risk judgment.
    Ask whether an engineer can implement every DR without major assumptions, whether a tester can derive meaningful test cases, and whether the OR-to-DR mapping is complete enough to reduce rework.
 
 7. Write per-OR findings.
@@ -199,15 +196,18 @@ For each OR unit:
    - DR average score
    - requirement decomposition and traceability score
    - review conclusion
-   - design review readiness
-   - development readiness
-   - test design readiness
    - blocking issues when present
    - triggered red-line rules and score-cap basis when applicable
    - 2 to 4 key evidence bullets
    - 1 to 3 red flags
    - 1 to 4 missing items
    - 2 to 5 revision actions
+   - **Detailed DR dimension scores**: For each DR under the OR, output a detailed breakdown table showing:
+     - DR-安全分析 (DR-Security Analysis): weight 5, score, and specific evidence or reason for deduction
+     - DR-技术描述 (DR-Technical Description): weight 10, score, and specific evidence or reason for deduction
+     - DR-可测试性 (DR-Testability): weight 10, score, and specific evidence or reason for deduction
+     - DR-无歧义性 (DR-Unambiguity): weight 8, score, and specific evidence or reason for deduction
+     - DR-异常描述 (DR-Exception Handling): weight 7, score, and specific evidence or reason for deduction
 
 8. Write cross-OR findings.
    Identify repeated weak dimensions, separate structural issues from OR-specific issues, call out the best-written OR units as templates, and summarize whether the whole set is ready for design review, implementation, and system test design.
@@ -216,7 +216,9 @@ For each OR unit:
    Before replying, verify all of the following:
    - the actual `sheet_name` is stated when the input is Excel
    - the report includes the overall average score and grade distribution
+   - the report includes OR requirement category statistics with a table showing each category, count, percentage, and exclusion status
    - the report includes all OR units, either as full scorecards or as a complete score table plus detailed cards for the highest-risk or most representative ORs
+   - each OR's detailed scorecard includes a per-DR dimension breakdown table (DR-安全分析, DR-技术描述, DR-可测试性, DR-无歧义性, DR-异常描述) with scores and evidence
    - triggered red-line rules are stated where applicable
    - the final response contains the formal report itself or points to the file containing it
    - the response does not end by asking the user whether they want the report
@@ -248,6 +250,8 @@ Behavior:
 - expands merged cells so OR fields remain visible on follower DR rows
 - reads JSON arrays or objects with a top-level list field
 - groups the packet by OR and nests all linked DR entries under that OR
+- includes only OR units whose requirement category is exactly `功能` in the scored `groups`
+- writes all OR category counts, percentages, inclusion status, and exclusion reasons to `all_category_counts`
 - prebuilds a scoring skeleton for each OR, including OR score slots, DR score slots, DR average slot, decomposition quality slot, and review decision slots
 - writes a review packet for the model
 - does not generate the final scores or the final report on its own
@@ -279,11 +283,12 @@ Preferred flow:
 2. Load the packet, this `SKILL.md`, and the report template.
 3. Ask the model to produce the final Chinese evaluation report.
 4. State the actual `sheet_name` from the packet when the input is Excel.
-5. Report scores by OR unit, not by raw row.
-6. Fill the prebuilt scoring skeleton from the packet instead of inventing a new report structure.
-7. Deliver the report in the same turn without waiting for extra confirmation from the user.
-8. When the input is large, prefer "complete all-OR score table + selected detailed scorecards" over omitting OR coverage or asking the user to choose a shorter format.
-9. When writing the formal report to disk, use `reports/<input-file-stem>.md` by default.
+5. Report scores only for OR units included in the packet `groups`; non-`功能` categories are excluded from scoring and should appear only in category statistics.
+6. Report scores by OR unit, not by raw row.
+7. Fill the prebuilt scoring skeleton from the packet instead of inventing a new report structure.
+8. Deliver the report in the same turn without waiting for extra confirmation from the user.
+9. When the input is large, prefer "complete all-OR score table + selected detailed scorecards" over omitting OR coverage or asking the user to choose a shorter format.
+10. When writing the formal report to disk, use `reports/<input-file-stem>.md` by default.
 
 Recommended prompt pattern:
 
@@ -302,12 +307,10 @@ For each OR:
 - give the OR total score
 - give the OR part score
 - give each DR score
+- give each DR's detailed dimension scores (DR-安全分析/5, DR-技术描述/10, DR-可测试性/10, DR-无歧义性/8, DR-异常描述/7) with specific evidence or deduction reason per dimension
 - give the DR average score
 - give the requirement decomposition and traceability score
 - give a formal review conclusion
-- state whether it is ready for design review
-- state whether it is ready for development
-- state whether it is ready for test design
 - list blocking issues when they exist
 - cite concrete evidence from the OR and DR rows
 - list red flags

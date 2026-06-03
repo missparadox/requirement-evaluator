@@ -25,12 +25,20 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         dimensions = self.module.build_dimensions()
         by_key = {item["key"]: item for item in dimensions}
         self.assertEqual(by_key["or_user_language"]["weight"], 12)
+        self.assertEqual(by_key["dr_security"]["weight"], 5)
         self.assertEqual(by_key["dr_technical"]["weight"], 10)
-        self.assertEqual(by_key["cross_scope"]["weight"], 6)
+        self.assertEqual(by_key["dr_ambiguity"]["weight"], 8)
+        self.assertEqual(by_key["dr_exception"]["weight"], 7)
+        self.assertEqual(by_key["cross_scope"]["weight"], 7)
+        self.assertEqual(by_key["cross_dependencies"]["weight"], 6)
+        self.assertEqual(by_key["cross_traceability"]["weight"], 7)
         self.assertEqual(sum(item["weight"] for item in dimensions if item["key"].startswith("or_")), 40)
         self.assertEqual(sum(item["weight"] for item in dimensions if item["key"].startswith("dr_")), 40)
         self.assertEqual(sum(item["weight"] for item in dimensions if item["key"].startswith("cross_")), 20)
         self.assertEqual(by_key["or_scenario"]["name"], "OR-应用场景")
+        self.assertNotIn("dr_performance", by_key)
+        self.assertNotIn("dr_hardware", by_key)
+        self.assertNotIn("cross_exceptions", by_key)
 
     def test_build_review_packet_keeps_rows_and_core_fields(self):
         record_1 = self.module.RowRecord(
@@ -39,6 +47,7 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
                 "OR需求编号": ["DOR-1"],
                 "OR需求名称*": ["网络检测与诊断"],
                 "OR需求描述*": ["提供网络检测与维护功能。"],
+                "分类类型": ["功能"],
                 "需求来源": ["客户定制"],
                 "国家/区域": ["中国"],
                 "DR需求编号": ["DDR-1"],
@@ -57,6 +66,7 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
                 "OR需求编号": ["DOR-1"],
                 "OR需求名称*": ["网络检测与诊断"],
                 "OR需求描述*": ["提供网络检测与维护功能。"],
+                "分类类型": ["功能"],
                 "需求来源": ["客户定制"],
                 "国家/区域": ["中国"],
                 "DR需求编号": ["DDR-2"],
@@ -80,11 +90,16 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertEqual(packet["item_count"], 1)
         self.assertEqual(packet["or_count"], 1)
         self.assertEqual(packet["dr_count"], 2)
+        self.assertEqual(packet["excluded_or_count"], 0)
+        self.assertEqual(packet["all_category_counts"][0]["category"], "功能")
+        self.assertTrue(packet["all_category_counts"][0]["included_in_evaluation"])
         self.assertEqual(packet["score_structure"]["or_total_weight"], 40)
         self.assertEqual(packet["score_structure"]["dr_total_weight"], 40)
         self.assertEqual(packet["score_structure"]["cross_total_weight"], 20)
         self.assertEqual(packet["source_info"]["input_format"], "json")
         self.assertEqual(packet["groups"][0]["id"], "DOR-1")
+        self.assertEqual(packet["groups"][0]["category"], "功能")
+        self.assertEqual(packet["groups"][0]["category_field"], "分类类型")
         self.assertIn("raw_fields", packet["groups"][0])
         self.assertIn("or_dimension_view", packet["groups"][0])
         self.assertIn("cross_dimension_view", packet["groups"][0])
@@ -111,6 +126,7 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
                 "OR需求编号": ["DOR-2"],
                 "OR需求名称*": ["设备接入"],
                 "OR需求描述*": ["支持设备接入。"],
+                "分类类型": ["功能"],
                 "DR需求描述*": ["设备接入需校验参数格式。"],
                 "参数规格": ["字段长度 1-64"],
             },
@@ -129,6 +145,46 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertIn("系统测试要点", dim_view["dr_testability"]["missing_fields"])
         self.assertEqual(dim_view["dr_testability"]["evidence_fields"]["参数规格"], ["字段长度 1-64"])
 
+    def test_build_review_packet_only_evaluates_functional_requirements(self):
+        functional = self.module.RowRecord(
+            index=1,
+            grouped={
+                "OR需求编号": ["DOR-1"],
+                "OR需求名称*": ["功能需求"],
+                "OR需求描述*": ["提供设备接入功能。"],
+                "分类类型": ["功能"],
+                "DR需求编号": ["DDR-1"],
+                "DR需求描述*": ["校验设备接入参数。"],
+            },
+        )
+        non_functional = self.module.RowRecord(
+            index=2,
+            grouped={
+                "OR需求编号": ["DOR-2"],
+                "OR需求名称*": ["性能需求"],
+                "OR需求描述*": ["响应时间小于 1 秒。"],
+                "分类类型": ["性能"],
+                "DR需求编号": ["DDR-2"],
+                "DR需求描述*": ["接口响应时间小于 1 秒。"],
+            },
+        )
+
+        packet = self.module.build_review_packet(
+            input_path=Path("sample.json"),
+            dimensions=self.module.DEFAULT_DIMENSIONS,
+            records=[functional, non_functional],
+            source_info={"input_format": "json"},
+        )
+
+        self.assertEqual(packet["item_count"], 1)
+        self.assertEqual(packet["or_count"], 1)
+        self.assertEqual(packet["excluded_or_count"], 1)
+        self.assertEqual(packet["groups"][0]["id"], "DOR-1")
+        by_category = {item["category"]: item for item in packet["all_category_counts"]}
+        self.assertTrue(by_category["功能"]["included_in_evaluation"])
+        self.assertFalse(by_category["性能"]["included_in_evaluation"])
+        self.assertEqual(by_category["性能"]["exclusion_reason"], "分类类型不是功能")
+
     def test_rendered_markdown_is_a_review_packet_not_a_scored_report(self):
         packet = {
             "input_path": "requirements.json",
@@ -139,12 +195,34 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
             "dr_count": 2,
             "dimension_count": 1,
             "dimensions": [{"key": "dr_technical", "name": "DR-技术描述", "weight": 10, "description": "desc"}],
+            "evaluation_filter": {"included_category": "功能"},
+            "all_category_counts": [
+                {
+                    "category": "功能",
+                    "count": 1,
+                    "percentage": 50.0,
+                    "included_in_evaluation": True,
+                    "exclusion_reason": "",
+                    "source_field": "分类类型",
+                },
+                {
+                    "category": "性能",
+                    "count": 1,
+                    "percentage": 50.0,
+                    "included_in_evaluation": False,
+                    "exclusion_reason": "分类类型不是功能",
+                    "source_field": "分类类型",
+                },
+            ],
+            "excluded_or_count": 1,
             "header_summary": ["OR需求编号", "DR需求描述*"],
             "groups": [
                 {
                     "row_indices": [1, 2],
                     "id": "DOR-1",
                     "name": "DNS配置",
+                    "category": "功能",
+                    "category_field": "分类类型",
                     "or_core_fields": {"or_desc": "支持 DNS"},
                     "or_dimension_view": {},
                     "dr_count": 2,
@@ -174,15 +252,12 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
                         }
                     },
                     "review_skeleton": {
-                        "or_total_score": {"max_score": 100, "score": None, "grade": None, "review_conclusion": None},
+                        "or_total_score": {"max_score": 100, "score": None, "review_conclusion": None},
                         "or_part": {"max_score": 40, "score": None, "dimension_scores": []},
                         "dr_parts": [{"dr_id": "DDR-1", "dr_name": "Ping检测", "max_score": 40, "score": None, "dimension_scores": []}],
                         "dr_average": {"max_score": 40, "score": None},
                         "decomposition_quality": {"max_score": 20, "score": None, "dimension_scores": []},
                         "review_decision": {
-                            "design_review_readiness": None,
-                            "development_readiness": None,
-                            "test_design_readiness": None,
                             "blocking_issues": [],
                             "triggered_red_line_rules": [],
                         },
@@ -198,6 +273,10 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertIn("## 评分结构", rendered)
         self.assertIn("- OR部分: 40", rendered)
         self.assertIn("- DR数量: 2", rendered)
+        self.assertIn("- 排除OR条目数: 1", rendered)
+        self.assertIn("- 评估分类过滤: `功能`", rendered)
+        self.assertIn("## OR需求分类统计", rendered)
+        self.assertIn("| 性能 | 1 | 50.0% | 否 | 分类类型不是功能 | 分类类型 |", rendered)
         self.assertIn("- sheet_name: `Sheet1`", rendered)
         self.assertIn("DR评审单元", rendered)
         self.assertIn("需求分解与追踪维度视图", rendered)
@@ -205,6 +284,7 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertIn("- OR总分槽位: 100", rendered)
         self.assertNotIn("总分:", rendered)
         self.assertNotIn("等级:", rendered)
+        self.assertNotIn("design/development/test readiness", rendered)
 
     def test_cli_json_output_writes_packet(self):
         rows = [
@@ -212,6 +292,7 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
                 "OR需求编号": "DOR-1",
                 "OR需求名称*": "网络检测与诊断",
                 "OR需求描述*": "提供网络检测与维护功能。",
+                "分类类型": "功能",
                 "DR需求编号": "DDR-1",
                 "DR需求名称*": "Ping检测",
                 "DR需求描述*": "支持 Ping 检测。",
@@ -220,6 +301,7 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
                 "OR需求编号": "DOR-1",
                 "OR需求名称*": "网络检测与诊断",
                 "OR需求描述*": "提供网络检测与维护功能。",
+                "分类类型": "功能",
                 "DR需求编号": "DDR-2",
                 "DR需求名称*": "Telnet检测",
                 "DR需求描述*": "支持 Telnet 检测。",
@@ -267,22 +349,25 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
             default_sheet["A1"] = "OR需求编号"
             default_sheet["B1"] = "OR需求名称*"
             default_sheet["C1"] = "OR需求描述*"
-            default_sheet["D1"] = "DR需求编号"
-            default_sheet["E1"] = "DR需求名称*"
-            default_sheet["F1"] = "DR需求描述*"
+            default_sheet["D1"] = "分类类型"
+            default_sheet["E1"] = "DR需求编号"
+            default_sheet["F1"] = "DR需求名称*"
+            default_sheet["G1"] = "DR需求描述*"
 
             default_sheet["A2"] = "DOR-1"
             default_sheet["B2"] = "网络检测与诊断"
             default_sheet["C2"] = "提供网络检测与维护功能。"
-            default_sheet["D2"] = "DDR-1"
-            default_sheet["E2"] = "Ping检测"
-            default_sheet["F2"] = "支持 Ping 检测。"
-            default_sheet["D3"] = "DDR-2"
-            default_sheet["E3"] = "Telnet检测"
-            default_sheet["F3"] = "支持 Telnet 检测。"
+            default_sheet["D2"] = "功能"
+            default_sheet["E2"] = "DDR-1"
+            default_sheet["F2"] = "Ping检测"
+            default_sheet["G2"] = "支持 Ping 检测。"
+            default_sheet["E3"] = "DDR-2"
+            default_sheet["F3"] = "Telnet检测"
+            default_sheet["G3"] = "支持 Telnet 检测。"
             default_sheet.merge_cells("A2:A3")
             default_sheet.merge_cells("B2:B3")
             default_sheet.merge_cells("C2:C3")
+            default_sheet.merge_cells("D2:D3")
             workbook.create_sheet("OtherSheet")
             workbook.save(input_path)
 

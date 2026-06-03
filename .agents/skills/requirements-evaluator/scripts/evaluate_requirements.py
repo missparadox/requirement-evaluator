@@ -11,6 +11,17 @@ from pathlib import Path
 from typing import Dict, List, Sequence
 
 
+EVALUATED_REQUIREMENT_CATEGORY = "功能"
+CATEGORY_FIELD_CANDIDATES = (
+    "分类类型",
+    "需求分类",
+    "OR需求分类",
+    "需求类型",
+    "需求类别",
+    "OR需求类型",
+    "需求分类类型",
+)
+
 DEFAULT_DIMENSIONS = [
     {
         "key": "or_user_language",
@@ -39,7 +50,7 @@ DEFAULT_DIMENSIONS = [
     {
         "key": "dr_security",
         "name": "DR-安全分析",
-        "weight": 10,
+        "weight": 5,
         "description": "是否进行安全分析，描述对应的安全红线需求",
     },
     {
@@ -57,44 +68,32 @@ DEFAULT_DIMENSIONS = [
     {
         "key": "dr_ambiguity",
         "name": "DR-无歧义性",
-        "weight": 5,
+        "weight": 8,
         "description": "参数规格是否清晰，无歧义",
     },
     {
-        "key": "dr_performance",
-        "name": "DR-性能需求",
-        "weight": 3,
-        "description": "是否包含性能需求（如响应时间、吞吐量等）",
-    },
-    {
-        "key": "dr_hardware",
-        "name": "DR-硬件分析",
-        "weight": 2,
-        "description": "是否分析所需要的硬件性能（如 CPU、内存、存储等）",
+        "key": "dr_exception",
+        "name": "DR-异常描述",
+        "weight": 7,
+        "description": "是否明确异常路径、错误条件、非法输入处理、失败行为和边界场景",
     },
     {
         "key": "cross_scope",
         "name": "需求分解完整性",
-        "weight": 6,
+        "weight": 7,
         "description": "是否覆盖 OR 的关键能力点，多个 DR 合起来是否形成完整分解，是否存在明显漏拆",
     },
     {
         "key": "cross_dependencies",
         "name": "需求分解边界清晰度",
-        "weight": 4,
+        "weight": 6,
         "description": "各 DR 之间的职责边界是否清楚，是否存在交叉、重复拆解或责任不清",
     },
     {
         "key": "cross_traceability",
         "name": "需求映射一致性",
-        "weight": 6,
+        "weight": 7,
         "description": "OR 与各 DR 是否语义一致、范围匹配、无明显偏题或冲突，且 DS/TDR/TDS 与该链路一致",
-    },
-    {
-        "key": "cross_exceptions",
-        "name": "需求追踪与异常覆盖",
-        "weight": 4,
-        "description": "OR 到 DR 的追踪关系是否清晰，且异常输入、失败路径和边界场景是否在分解结果中有明确落点",
     },
 ]
 
@@ -141,6 +140,7 @@ OR_CORE_ALIASES = (
     "constraints",
     "requirement_source",
     "region",
+    "requirement_category",
 )
 
 DR_CORE_ALIASES = (
@@ -176,12 +176,10 @@ DIMENSION_FIELD_MAP = {
     "dr_technical": ["DR需求描述*", "DS需求描述*", "TDR需求描述*", "TDS需求描述*", "集成方式", "参数规格", "规格分类", "所属子系统"],
     "dr_testability": ["系统测试要点", "验证方法描述", "参数规格", "DR需求描述*", "DS需求描述*"],
     "dr_ambiguity": ["参数规格", "DR需求描述*", "TDR需求描述*"],
-    "dr_performance": ["DR需求描述*", "参数规格", "约束与限制", "更多描述信息"],
-    "dr_hardware": ["DR需求描述*", "参数规格", "约束与限制", "更多描述信息"],
+    "dr_exception": ["DR需求描述*", "系统测试要点", "验证方法描述", "安全约束", "更多描述信息"],
     "cross_scope": ["OR需求描述*", "DR需求描述*", "DS需求描述*", "TDR需求描述*", "TDS需求描述*"],
     "cross_dependencies": ["假设和依赖信息", "所属子系统", "国家/区域", "需求来源", "集成方式", "约束与限制", "DS需求描述*", "TDS需求描述*"],
     "cross_traceability": ["OR需求编号", "DR需求编号", "DS需求编号", "TDR需求编号", "TDS需求编号", "ORURL", "DRURL", "DSURL", "TDRURL", "TDSURL"],
-    "cross_exceptions": ["DR需求描述*", "系统测试要点", "验证方法描述", "安全约束", "更多描述信息"],
 }
 
 
@@ -326,6 +324,7 @@ def extract_core_fields(record: RowRecord) -> Dict[str, str]:
     core = {}
     for alias, source in CORE_FIELD_MAP.items():
         core[alias] = record.first(source)
+    core["requirement_category"] = requirement_category(record)["value"]
     return core
 
 
@@ -366,12 +365,57 @@ def build_raw_fields(record: RowRecord) -> Dict[str, List[str]]:
     }
 
 
+def requirement_category(record: RowRecord) -> Dict[str, str]:
+    for field in CATEGORY_FIELD_CANDIDATES:
+        values = [clean_text(value) for value in record.grouped.get(field, []) if clean_text(value)]
+        if values:
+            return {"field": field, "value": values[0]}
+    return {"field": "", "value": ""}
+
+
+def category_display_name(category: str) -> str:
+    return category or "未分类"
+
+
+def is_evaluated_category(category: str) -> bool:
+    return clean_text(category) == EVALUATED_REQUIREMENT_CATEGORY
+
+
+def build_category_counts(or_groups: Sequence[Sequence[RowRecord]]) -> List[Dict[str, object]]:
+    total = len(or_groups)
+    counts: Dict[str, int] = {}
+    fields: Dict[str, str] = {}
+
+    for or_records in or_groups:
+        merged_record = merge_records(or_records)
+        category = requirement_category(merged_record)
+        value = category_display_name(category["value"])
+        counts[value] = counts.get(value, 0) + 1
+        if category["field"] and value not in fields:
+            fields[value] = category["field"]
+
+    category_counts = []
+    for value, count in counts.items():
+        included = is_evaluated_category(value)
+        percentage = round((count / total * 100), 2) if total else 0
+        category_counts.append(
+            {
+                "category": value,
+                "count": count,
+                "percentage": percentage,
+                "included_in_evaluation": included,
+                "exclusion_reason": "" if included else f"分类类型不是{EVALUATED_REQUIREMENT_CATEGORY}",
+                "source_field": fields.get(value, ""),
+            }
+        )
+    return category_counts
+
+
 def build_or_review_skeleton(score_weights: Dict[str, int], dr_items: Sequence[Dict[str, object]]) -> Dict[str, object]:
     return {
         "or_total_score": {
             "max_score": score_weights["or_total_weight"] + score_weights["dr_total_weight"] + score_weights["cross_total_weight"],
             "score": None,
-            "grade": None,
             "review_conclusion": None,
         },
         "or_part": {
@@ -399,9 +443,6 @@ def build_or_review_skeleton(score_weights: Dict[str, int], dr_items: Sequence[D
             "dimension_scores": [],
         },
         "review_decision": {
-            "design_review_readiness": None,
-            "development_readiness": None,
-            "test_design_readiness": None,
             "blocking_issues": [],
             "triggered_red_line_rules": [],
         },
@@ -491,12 +532,17 @@ def build_review_packet(
     cross_dimensions = filter_dimensions(dimensions, "cross_")
 
     score_weights = score_structure(dimensions)
+    or_record_groups = group_records_by_or(records)
+    all_category_counts = build_category_counts(or_record_groups)
     groups = []
     total_dr_count = 0
-    for or_records in group_records_by_or(records):
+    for or_records in or_record_groups:
         merged_or_record = merge_records(or_records)
         raw_fields = build_raw_fields(merged_or_record)
         if not raw_fields:
+            continue
+        category = requirement_category(merged_or_record)
+        if not is_evaluated_category(category["value"]):
             continue
         full_core_fields = extract_core_fields(merged_or_record)
         or_core_fields = select_core_fields(full_core_fields, OR_CORE_ALIASES)
@@ -530,6 +576,8 @@ def build_review_packet(
                 "row_indices": [record.index for record in or_records],
                 "id": requirement_id,
                 "name": requirement_name,
+                "category": category_display_name(category["value"]),
+                "category_field": category["field"],
                 "or_core_fields": or_core_fields,
                 "or_dimension_view": build_dimension_view(merged_or_record, or_dimensions),
                 "dr_items": dr_items,
@@ -544,6 +592,15 @@ def build_review_packet(
         "input_path": str(input_path),
         "source_info": dict(source_info or {}),
         "score_structure": score_weights,
+        "evaluation_filter": {
+            "category_field_candidates": list(CATEGORY_FIELD_CANDIDATES),
+            "included_category": EVALUATED_REQUIREMENT_CATEGORY,
+            "rule": f"only OR units whose requirement category is exactly `{EVALUATED_REQUIREMENT_CATEGORY}` are included in evaluation",
+        },
+        "all_category_counts": all_category_counts,
+        "excluded_or_count": sum(
+            int(item["count"]) for item in all_category_counts if not bool(item["included_in_evaluation"])
+        ),
         "item_count": len(groups),
         "or_count": len(groups),
         "dr_count": total_dr_count,
@@ -567,8 +624,25 @@ def render_review_packet_markdown(packet: Dict[str, object]) -> str:
         lines.append(f"- {key}: `{value}`")
     lines.append(f"- OR条目数: {packet['or_count']}")
     lines.append(f"- DR条目数: {packet['dr_count']}")
+    lines.append(f"- 排除OR条目数: {packet.get('excluded_or_count', 0)}")
     lines.append(f"- 维度数: {packet['dimension_count']}")
+    evaluation_filter = packet.get("evaluation_filter", {})
+    if evaluation_filter:
+        lines.append(f"- 评估分类过滤: `{evaluation_filter.get('included_category', '')}`")
     lines.append("")
+    if packet.get("all_category_counts"):
+        lines.append("## OR需求分类统计")
+        lines.append("")
+        lines.append("| 需求分类 | OR条目数 | 占比 | 是否参与评审 | 排除原因 | 来源字段 |")
+        lines.append("| --- | ---: | ---: | --- | --- | --- |")
+        for item in packet["all_category_counts"]:
+            included = "是" if item.get("included_in_evaluation") else "否"
+            reason = item.get("exclusion_reason") or ""
+            source_field = item.get("source_field") or ""
+            lines.append(
+                f"| {item.get('category', '')} | {item.get('count', 0)} | {item.get('percentage', 0)}% | {included} | {reason} | {source_field} |"
+            )
+        lines.append("")
     lines.append("## 评分结构")
     lines.append("")
     lines.append(f"- OR部分: {packet['score_structure']['or_total_weight']}")
@@ -593,6 +667,9 @@ def render_review_packet_markdown(packet: Dict[str, object]) -> str:
         lines.append(f"### OR {item['id']} {item['name']}")
         lines.append("")
         lines.append(f"- 覆盖行: {', '.join(str(idx) for idx in item['row_indices'])}")
+        lines.append(f"- 分类类型: {item.get('category', '')}")
+        if item.get("category_field"):
+            lines.append(f"- 分类来源字段: {item.get('category_field')}")
         lines.append(f"- DR数量: {item['dr_count']}")
         lines.append("")
         lines.append("OR核心字段：")
@@ -639,7 +716,7 @@ def render_review_packet_markdown(packet: Dict[str, object]) -> str:
         lines.append(f"- DR平均分槽位: {item['review_skeleton']['dr_average']['max_score']}")
         lines.append(f"- 需求分解与追踪质量槽位: {item['review_skeleton']['decomposition_quality']['max_score']}")
         lines.append(f"- DR评分槽位数: {len(item['review_skeleton']['dr_parts'])}")
-        lines.append(f"- 评审决策槽位: design/development/test readiness, blocking issues, red-line rules")
+        lines.append(f"- 评审决策槽位: review conclusion, blocking issues, red-line rules")
         lines.append("")
         lines.append("聚合原始字段：")
         for key, values in item["raw_fields"].items():

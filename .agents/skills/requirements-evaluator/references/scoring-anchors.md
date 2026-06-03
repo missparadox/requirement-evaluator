@@ -11,6 +11,17 @@ Use this file to stabilize scoring decisions. Score with the 100-point structure
 
 ## Key Dimension Anchors
 
+### OR-用户语言描述
+
+- `Meets`
+  - Requirement wording is understandable from a user or business perspective.
+  - The description explains the desired capability without relying mainly on internal implementation terms.
+- `Weak`
+  - The requirement is mostly understandable, but mixes user intent with unexplained technical wording.
+  - The user-facing meaning can be inferred but is not stated cleanly.
+- `Missing`
+  - The description is mainly implementation language or an abstract label, so non-technical readers cannot reliably understand the need.
+
 ### OR-应用场景
 
 - `Meets`
@@ -51,6 +62,17 @@ Use this file to stabilize scoring decisions. Score with the 100-point structure
 - `Missing`
   - Uses vague wording such as "support", "implement", or "provide" without enough detail to guide implementation.
 
+### DR-安全分析
+
+- `Meets`
+  - Security constraints, red lines, authentication, authorization, audit, encryption, or safety boundaries are explicitly described where relevant.
+  - The DR states how security-sensitive behavior should be handled or verified.
+- `Weak`
+  - Security is mentioned, but the boundary, rule, or expected handling is incomplete.
+  - Security expectations require additional interpretation before implementation or testing.
+- `Missing`
+  - Security expectations are absent when the DR involves access, data, operations, interfaces, compliance, or other security-sensitive behavior.
+
 ### DR-可测试性
 
 - `Meets`
@@ -70,6 +92,19 @@ Use this file to stabilize scoring decisions. Score with the 100-point structure
   - The main subject is clear, but key terms, boundaries, or result criteria still allow multiple interpretations.
 - `Missing`
   - Relies on vague wording such as "support", "reasonable", "related", or "complete" without additional definition.
+
+### DR-异常描述
+
+- `Meets`
+  - Exception paths, error conditions, invalid input handling, and failure behavior are explicitly described.
+  - Triggers for each exception and the expected system response are clearly stated.
+  - Edge scenarios and boundary conditions are addressed.
+- `Weak`
+  - Some exception paths are mentioned but lack specific triggers, expected responses, or recovery behavior.
+  - Error handling is partially described but incomplete or inconsistent.
+- `Missing`
+  - No exception or error handling is described.
+  - Only the happy path is covered with no mention of failure scenarios or invalid input.
 
 ### 需求分解完整性
 
@@ -100,16 +135,6 @@ Use this file to stabilize scoring decisions. Score with the 100-point structure
   - The overall mapping is mostly visible, but some DRs are too narrow, too broad, partially off-topic, or weakly mapped.
 - `Missing`
   - The OR-to-DR relationship is inconsistent or unclear, so the decomposition cannot be trusted as an accurate implementation of the OR.
-
-### 需求追踪与异常覆盖
-
-- `Meets`
-  - The OR-to-DR trace is clear.
-  - Exception paths, invalid input, failure behavior, or key edge scenarios are explicitly represented in the decomposition result.
-- `Weak`
-  - The trace is mostly visible, but exception or edge-case handling is incomplete or only weakly represented.
-- `Missing`
-  - The trace is unclear and exception or edge-case handling has no clear decomposition landing point.
 
 ## Red-Line Rules
 
