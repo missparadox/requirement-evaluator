@@ -209,6 +209,23 @@ def build_dimensions() -> List[Dict[str, object]]:
     return [dict(item) for item in DEFAULT_DIMENSIONS]
 
 
+def packet_output_suffix(output_format: str) -> str:
+    return ".json" if output_format == "json" else ".md"
+
+
+def default_packet_output_path(input_path: Path, output_format: str) -> Path:
+    return input_path.with_suffix(packet_output_suffix(output_format))
+
+
+def resolve_output_path(input_path: Path, output_arg: str | None, output_format: str) -> Path:
+    if not output_arg:
+        return default_packet_output_path(input_path, output_format)
+    output_path = Path(output_arg).expanduser().resolve()
+    if output_path.exists() and output_path.is_dir():
+        return output_path / f"{input_path.stem}{packet_output_suffix(output_format)}"
+    return output_path
+
+
 def missing_runtime_dependencies(path: Path) -> List[str]:
     suffix = path.suffix.lower()
     missing = []
@@ -728,12 +745,15 @@ def render_review_packet_markdown(packet: Dict[str, object]) -> str:
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Build a review packet for LLM-based requirement evaluation.")
     parser.add_argument("--input", required=True, help="Path to the input Excel/JSON file.")
-    parser.add_argument("--output", required=True, help="Path to write the review packet.")
+    parser.add_argument(
+        "--output",
+        help="Path to write the review packet. If omitted, or if a directory is provided, the packet filename uses the input file stem.",
+    )
     parser.add_argument("--format", choices=("markdown", "json"), default="markdown", help="Output packet format.")
     args = parser.parse_args(argv)
 
     input_path = Path(args.input).expanduser().resolve()
-    output_path = Path(args.output).expanduser().resolve()
+    output_path = resolve_output_path(input_path, args.output, args.format)
 
     dimensions = build_dimensions()
     read_result = read_records(input_path)

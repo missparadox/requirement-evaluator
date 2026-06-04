@@ -40,6 +40,19 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertNotIn("dr_hardware", by_key)
         self.assertNotIn("cross_exceptions", by_key)
 
+    def test_resolve_output_path_uses_input_stem_by_default_or_for_directory(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            input_path = (tmp / "requirements.xlsx").resolve()
+
+            default_path = self.module.resolve_output_path(input_path, None, "markdown")
+            directory_path = self.module.resolve_output_path(input_path, str(tmp), "json")
+            explicit_path = self.module.resolve_output_path(input_path, str(tmp / "custom.md"), "markdown")
+
+        self.assertEqual(default_path.name, "requirements.md")
+        self.assertEqual(directory_path.name, "requirements.json")
+        self.assertEqual(explicit_path.name, "custom.md")
+
     def test_build_review_packet_keeps_rows_and_core_fields(self):
         record_1 = self.module.RowRecord(
             index=1,
@@ -332,6 +345,30 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertEqual(packet["source_info"]["input_format"], "json")
         self.assertEqual(packet["groups"][0]["name"], "网络检测与诊断")
         self.assertIn("review_skeleton", packet["groups"][0])
+
+    def test_cli_default_output_uses_input_file_stem(self):
+        rows = [
+            {
+                "OR需求编号": "DOR-1",
+                "OR需求名称*": "网络检测与诊断",
+                "OR需求描述*": "提供网络检测与维护功能。",
+                "分类类型": "功能",
+                "DR需求编号": "DDR-1",
+                "DR需求名称*": "Ping检测",
+                "DR需求描述*": "支持 Ping 检测。",
+            }
+        ]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            input_path = tmp / "requirements.json"
+            output_path = tmp / "requirements.md"
+            input_path.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
+
+            self.module.main(["--input", str(input_path)])
+
+            rendered = output_path.read_text(encoding="utf-8")
+
+        self.assertIn("# 需求评审任务包", rendered)
 
     def test_read_excel_records_active_sheet_name_in_source_info(self):
         try:

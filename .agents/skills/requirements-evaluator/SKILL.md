@@ -240,8 +240,7 @@ Use the bundled script when possible:
 
 ```bash
 python3 scripts/evaluate_requirements.py \
-  --input /path/to/input-file.xlsx \
-  --output /path/to/review-packet.md
+  --input /path/to/input-file.xlsx
 ```
 
 Behavior:
@@ -254,6 +253,9 @@ Behavior:
 - writes all OR category counts, percentages, inclusion status, and exclusion reasons to `all_category_counts`
 - prebuilds a scoring skeleton for each OR, including OR score slots, DR score slots, DR average slot, decomposition quality slot, and review decision slots
 - writes a review packet for the model
+- when `--output` is omitted, names the packet after the input file stem, for example `requirements.xlsx` -> `requirements.md`
+- when `--output` points to an existing directory, writes the packet in that directory with the input file stem, for example `out/requirements.md`
+- when `--output` is an explicit file path, writes to that exact path for compatibility with existing callers
 - does not generate the final scores or the final report on its own
 
 ## Dependencies
