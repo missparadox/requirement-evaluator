@@ -2,16 +2,37 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import importlib.util
+import io
 import json
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Sequence
 
 
 EVALUATED_REQUIREMENT_CATEGORY = "功能"
+DEFAULT_SHARD_SIZE = 2
+SKILL_DIR = Path(__file__).resolve().parents[1]
+REFERENCES_DIR = SKILL_DIR / "references"
+SCORING_GUIDE_FILE = REFERENCES_DIR / "scoring-guide.md"
+TSV_SCHEMA_FILE = REFERENCES_DIR / "output-tsv-schema.md"
+TSV_COLUMNS = [
+    "or_id",
+    "or_name",
+    "total_score",
+    "or_score",
+    "dr_average_score",
+    "traceability_score",
+    "grade",
+    "weak_dimensions",
+    "red_flags",
+    "missing_items",
+    "revision_actions",
+    "evidence_summary",
+]
 CATEGORY_FIELD_CANDIDATES = (
     "分类类型",
     "需求分类",
@@ -207,23 +228,6 @@ def clean_text(value: str) -> str:
 
 def build_dimensions() -> List[Dict[str, object]]:
     return [dict(item) for item in DEFAULT_DIMENSIONS]
-
-
-def packet_output_suffix(output_format: str) -> str:
-    return ".json" if output_format == "json" else ".md"
-
-
-def default_packet_output_path(input_path: Path, output_format: str) -> Path:
-    return input_path.with_suffix(packet_output_suffix(output_format))
-
-
-def resolve_output_path(input_path: Path, output_arg: str | None, output_format: str) -> Path:
-    if not output_arg:
-        return default_packet_output_path(input_path, output_format)
-    output_path = Path(output_arg).expanduser().resolve()
-    if output_path.exists() and output_path.is_dir():
-        return output_path / f"{input_path.stem}{packet_output_suffix(output_format)}"
-    return output_path
 
 
 def missing_runtime_dependencies(path: Path) -> List[str]:
@@ -628,149 +632,467 @@ def build_review_packet(
     }
 
 
-def render_review_packet_markdown(packet: Dict[str, object]) -> str:
-    lines = []
-    lines.append("# 需求评审任务包")
-    lines.append("")
-    lines.append("本文件不是评分结果，而是提供给大模型使用的评审输入材料。模型应根据 skill 与 rubric 自主评分并输出正式中文报告。")
-    lines.append("")
-    lines.append("## 数据概览")
-    lines.append("")
-    lines.append(f"- 输入文件: `{packet['input_path']}`")
-    for key, value in packet.get("source_info", {}).items():
-        lines.append(f"- {key}: `{value}`")
-    lines.append(f"- OR条目数: {packet['or_count']}")
-    lines.append(f"- DR条目数: {packet['dr_count']}")
-    lines.append(f"- 排除OR条目数: {packet.get('excluded_or_count', 0)}")
-    lines.append(f"- 维度数: {packet['dimension_count']}")
-    evaluation_filter = packet.get("evaluation_filter", {})
-    if evaluation_filter:
-        lines.append(f"- 评估分类过滤: `{evaluation_filter.get('included_category', '')}`")
-    lines.append("")
-    if packet.get("all_category_counts"):
-        lines.append("## OR需求分类统计")
-        lines.append("")
-        lines.append("| 需求分类 | OR条目数 | 占比 | 是否参与评审 | 排除原因 | 来源字段 |")
-        lines.append("| --- | ---: | ---: | --- | --- | --- |")
-        for item in packet["all_category_counts"]:
-            included = "是" if item.get("included_in_evaluation") else "否"
-            reason = item.get("exclusion_reason") or ""
-            source_field = item.get("source_field") or ""
-            lines.append(
-                f"| {item.get('category', '')} | {item.get('count', 0)} | {item.get('percentage', 0)}% | {included} | {reason} | {source_field} |"
-            )
-        lines.append("")
-    lines.append("## 评分结构")
-    lines.append("")
-    lines.append(f"- OR部分: {packet['score_structure']['or_total_weight']}")
-    lines.append(f"- DR部分: {packet['score_structure']['dr_total_weight']}，每个 OR 下的多个 DR 分别评分后取平均")
-    lines.append(f"- 需求分解与追踪质量部分: {packet['score_structure']['cross_total_weight']}，每个 OR 只评一次")
-    lines.append("")
-    lines.append("## 表头摘要")
-    lines.append("")
-    for header in packet["header_summary"]:
-        lines.append(f"- {header}")
-    lines.append("")
-    lines.append("## 评审维度")
-    lines.append("")
-    for item in packet["dimensions"]:
-        desc = item.get("description", "")
-        weight = item.get("weight", "")
-        lines.append(f"- {item['name']} ({weight}): {desc}")
-    lines.append("")
-    lines.append("## OR评审单元")
-    lines.append("")
-    for item in packet["groups"]:
-        lines.append(f"### OR {item['id']} {item['name']}")
-        lines.append("")
-        lines.append(f"- 覆盖行: {', '.join(str(idx) for idx in item['row_indices'])}")
-        lines.append(f"- 分类类型: {item.get('category', '')}")
-        if item.get("category_field"):
-            lines.append(f"- 分类来源字段: {item.get('category_field')}")
-        lines.append(f"- DR数量: {item['dr_count']}")
-        lines.append("")
-        lines.append("OR核心字段：")
-        for key, value in item["or_core_fields"].items():
-            if value:
-                lines.append(f"- {key}: {value}")
-        lines.append("")
-        lines.append("OR维度视图：")
-        for key, dimension in item.get("or_dimension_view", {}).items():
-            lines.append(f"- {key} / {dimension['name']}")
-            if dimension["evidence_fields"]:
-                for field, values in dimension["evidence_fields"].items():
-                    lines.append(f"  - evidence {field}: {' | '.join(values)}")
-            if dimension["missing_fields"]:
-                lines.append(f"  - missing: {', '.join(dimension['missing_fields'])}")
-        lines.append("")
-        lines.append("DR评审单元：")
-        for dr_item in item["dr_items"]:
-            lines.append(f"- DR {dr_item['id']} {dr_item['name']}")
-            lines.append(f"  - row_indices: {', '.join(str(idx) for idx in dr_item['row_indices'])}")
-            for key, value in dr_item["core_fields"].items():
-                if value and key.startswith(("dr_", "ds_", "tdr_", "tds_")):
-                    lines.append(f"  - {key}: {value}")
-            for key, dimension in dr_item.get("dimension_view", {}).items():
-                lines.append(f"  - {key} / {dimension['name']}")
-                if dimension["evidence_fields"]:
-                    for field, values in dimension["evidence_fields"].items():
-                        lines.append(f"    - evidence {field}: {' | '.join(values)}")
-                if dimension["missing_fields"]:
-                    lines.append(f"    - missing: {', '.join(dimension['missing_fields'])}")
-        lines.append("")
-        lines.append("需求分解与追踪维度视图：")
-        for key, dimension in item.get("cross_dimension_view", {}).items():
-            lines.append(f"- {key} / {dimension['name']}")
-            if dimension["evidence_fields"]:
-                for field, values in dimension["evidence_fields"].items():
-                    lines.append(f"  - evidence {field}: {' | '.join(values)}")
-            if dimension["missing_fields"]:
-                lines.append(f"  - missing: {', '.join(dimension['missing_fields'])}")
-        lines.append("")
-        lines.append("评分骨架：")
-        lines.append(f"- OR总分槽位: {item['review_skeleton']['or_total_score']['max_score']}")
-        lines.append(f"- OR部分槽位: {item['review_skeleton']['or_part']['max_score']}")
-        lines.append(f"- DR平均分槽位: {item['review_skeleton']['dr_average']['max_score']}")
-        lines.append(f"- 需求分解与追踪质量槽位: {item['review_skeleton']['decomposition_quality']['max_score']}")
-        lines.append(f"- DR评分槽位数: {len(item['review_skeleton']['dr_parts'])}")
-        lines.append(f"- 评审决策槽位: review conclusion, blocking issues, red-line rules")
-        lines.append("")
-        lines.append("聚合原始字段：")
-        for key, values in item["raw_fields"].items():
-            lines.append(f"- {key}: {' | '.join(values)}")
-        lines.append("")
-    return "\n".join(lines) + "\n"
+def read_json_file(path: Path) -> Dict[str, object]:
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
-def main(argv: Sequence[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="Build a review packet for LLM-based requirement evaluation.")
-    parser.add_argument("--input", required=True, help="Path to the input Excel/JSON file.")
-    parser.add_argument(
-        "--output",
-        help="Path to write the review packet. If omitted, or if a directory is provided, the packet filename uses the input file stem.",
-    )
-    parser.add_argument("--format", choices=("markdown", "json"), default="markdown", help="Output packet format.")
-    args = parser.parse_args(argv)
+def write_json_file(path: Path, payload: Dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    input_path = Path(args.input).expanduser().resolve()
-    output_path = resolve_output_path(input_path, args.output, args.format)
 
+def build_packet_from_input(input_path: Path) -> Dict[str, object]:
     dimensions = build_dimensions()
     read_result = read_records(input_path)
-    packet = build_review_packet(
+    return build_review_packet(
         input_path,
         dimensions,
         read_result.records,
         source_info=read_result.source_info,
     )
 
-    if args.format == "json":
-        output_path.write_text(json.dumps(packet, ensure_ascii=False, indent=2), encoding="utf-8")
-    else:
-        output_path.write_text(render_review_packet_markdown(packet), encoding="utf-8")
 
-    print(f"已生成评审任务包: {output_path}")
-    print(f"条目数: {packet['item_count']}")
+def build_shards(packet: Dict[str, object], shard_size: int = DEFAULT_SHARD_SIZE) -> List[Dict[str, object]]:
+    if shard_size < 1:
+        raise ValueError("shard_size must be at least 1")
+    groups = list(packet.get("groups", []))
+    shards = []
+    shard_count = (len(groups) + shard_size - 1) // shard_size
+    for index in range(shard_count):
+        chunk = groups[index * shard_size : (index + 1) * shard_size]
+        shard_id = f"shard_{index + 1:04d}"
+        shards.append(
+            {
+                "shard_id": shard_id,
+                "shard_index": index + 1,
+                "shard_count": shard_count,
+                "expected_or_ids": [str(item.get("id", "")) for item in chunk],
+                "input_path": packet.get("input_path", ""),
+                "source_info": packet.get("source_info", {}),
+                "score_structure": packet.get("score_structure", {}),
+                "dimensions": packet.get("dimensions", []),
+                "groups": chunk,
+            }
+        )
+    return shards
+
+
+def render_shard_prompt(shard: Dict[str, object]) -> str:
+    scoring_guide = SCORING_GUIDE_FILE.read_text(encoding="utf-8")
+    output_schema = TSV_SCHEMA_FILE.read_text(encoding="utf-8")
+    shard_json = json.dumps(shard, ensure_ascii=False, indent=2)
+    return (
+        "You are evaluating one independent requirements shard.\n"
+        "Use only the evidence in SHARD_JSON. Do not use prior conversation context.\n"
+        "Apply the complete SCORING_GUIDE and output exactly the TSV required by OUTPUT_TSV_SCHEMA.\n"
+        "Do not output Markdown, explanations, JSON, code fences, or any text outside the TSV.\n\n"
+        "[SCORING_GUIDE]\n"
+        f"{scoring_guide}\n\n"
+        "[OUTPUT_TSV_SCHEMA]\n"
+        f"{output_schema}\n\n"
+        "[SHARD_JSON]\n"
+        f"{shard_json}\n"
+    )
+
+
+def render_repair_prompt(raw_output: str) -> str:
+    output_schema = TSV_SCHEMA_FILE.read_text(encoding="utf-8")
+    return (
+        "Your previous output is not valid TSV.\n"
+        "Convert it to the exact TSV schema below.\n"
+        "Do not change scores, conclusions, or wording meaning.\n"
+        "Do not re-evaluate the requirements.\n"
+        "Only output TSV. Do not output Markdown, explanations, JSON, or code fences.\n\n"
+        "[OUTPUT_TSV_SCHEMA]\n"
+        f"{output_schema}\n\n"
+        "[INVALID_OUTPUT]\n"
+        f"{raw_output.strip()}\n"
+    )
+
+
+def write_shards_and_prompts(packet: Dict[str, object], out_dir: Path, shard_size: int) -> List[Dict[str, Path]]:
+    shards_dir = out_dir / "shards"
+    prompts_dir = out_dir / "prompts"
+    shards_dir.mkdir(parents=True, exist_ok=True)
+    prompts_dir.mkdir(parents=True, exist_ok=True)
+
+    records = []
+    for shard in build_shards(packet, shard_size):
+        shard_id = str(shard["shard_id"])
+        shard_path = shards_dir / f"{shard_id}.json"
+        prompt_path = prompts_dir / f"{shard_id}.prompt.txt"
+        write_json_file(shard_path, shard)
+        prompt_path.write_text(render_shard_prompt(shard), encoding="utf-8")
+        records.append({"shard": shard_path, "prompt": prompt_path})
+    return records
+
+
+def parse_number(value: str, field: str, minimum: float, maximum: float, errors: List[str]) -> float | None:
+    try:
+        number = float(str(value).strip())
+    except ValueError:
+        errors.append(f"{field} is not a number: {value}")
+        return None
+    if number < minimum or number > maximum:
+        errors.append(f"{field} out of range {minimum}-{maximum}: {value}")
+    return number
+
+
+def grade_for_score(score: float) -> str:
+    if score >= 90:
+        return "excellent"
+    if score >= 75:
+        return "good"
+    if score >= 60:
+        return "fair"
+    return "poor"
+
+
+def compact_number(value: float) -> int | float:
+    if value.is_integer():
+        return int(value)
+    return round(value, 2)
+
+
+def split_list_field(value: str) -> List[str]:
+    text = clean_text(value)
+    if text in {"", "无", "none", "None", "N/A", "n/a"}:
+        return []
+    return [item.strip() for item in text.split(";") if item.strip()]
+
+
+def strict_parse_tsv(raw_output: str) -> List[Dict[str, str]]:
+    text = raw_output.strip()
+    if not text:
+        raise ValueError("output is empty")
+    if text.startswith("```") or text.endswith("```"):
+        raise ValueError("output must not use code fences")
+    reader = csv.DictReader(io.StringIO(text), delimiter="\t")
+    if reader.fieldnames != TSV_COLUMNS:
+        raise ValueError("TSV header does not match the required schema")
+    rows = list(reader)
+    if not rows:
+        raise ValueError("TSV contains no result rows")
+    return rows
+
+
+def looks_repairable(raw_output: str, expected_or_ids: Sequence[str]) -> bool:
+    text = raw_output.strip()
+    if not text:
+        return False
+    if not all(or_id and or_id in text for or_id in expected_or_ids):
+        return False
+    schema_signals = sum(1 for column in ("or_id", "total_score", "or_score", "grade") if column in text)
+    format_signals = int("|" in text) + int("\t" in text) + int("```" in text)
+    return schema_signals >= 2 or format_signals >= 1
+
+
+def validate_tsv_output(shard: Dict[str, object], raw_output: str) -> Dict[str, object]:
+    expected_or_ids = [str(item) for item in shard.get("expected_or_ids", [])]
+    try:
+        rows = strict_parse_tsv(raw_output)
+    except ValueError as exc:
+        status = "repairable" if looks_repairable(raw_output, expected_or_ids) else "rerun_required"
+        return {
+            "status": status,
+            "shard_id": shard.get("shard_id", ""),
+            "errors": [str(exc)],
+            "results": [],
+        }
+
+    errors: List[str] = []
+    row_ids = [clean_text(row.get("or_id", "")) for row in rows]
+    if len(rows) != len(expected_or_ids):
+        errors.append(f"expected {len(expected_or_ids)} OR rows, got {len(rows)}")
+    if row_ids != expected_or_ids:
+        errors.append(f"OR ids do not match shard order: expected {expected_or_ids}, got {row_ids}")
+
+    results = []
+    for row in rows:
+        row_errors: List[str] = []
+        total_score = parse_number(row.get("total_score", ""), "total_score", 0, 100, row_errors)
+        or_score = parse_number(row.get("or_score", ""), "or_score", 0, 40, row_errors)
+        dr_average_score = parse_number(row.get("dr_average_score", ""), "dr_average_score", 0, 40, row_errors)
+        traceability_score = parse_number(row.get("traceability_score", ""), "traceability_score", 0, 20, row_errors)
+        grade = clean_text(row.get("grade", "")).lower()
+        if grade not in {"excellent", "good", "fair", "poor"}:
+            row_errors.append(f"invalid grade: {row.get('grade', '')}")
+        if None not in {total_score, or_score, dr_average_score, traceability_score}:
+            computed_total = float(or_score) + float(dr_average_score) + float(traceability_score)
+            if abs(float(total_score) - computed_total) > 0.05:
+                row_errors.append(
+                    "total_score must equal or_score + dr_average_score + traceability_score"
+                )
+            expected_grade = grade_for_score(float(total_score))
+            if grade and grade != expected_grade:
+                row_errors.append(f"grade {grade} does not match total_score {total_score}; expected {expected_grade}")
+        summary = clean_text(row.get("evidence_summary", ""))
+        if len(summary) > 240:
+            row_errors.append("evidence_summary is too long")
+        if row_errors:
+            errors.extend([f"{row.get('or_id', '')}: {message}" for message in row_errors])
+            continue
+        results.append(
+            {
+                "or_id": clean_text(row.get("or_id", "")),
+                "or_name": clean_text(row.get("or_name", "")),
+                "total_score": compact_number(float(total_score)),
+                "or_score": compact_number(float(or_score)),
+                "dr_average_score": compact_number(float(dr_average_score)),
+                "traceability_score": compact_number(float(traceability_score)),
+                "grade": grade,
+                "weak_dimensions": split_list_field(row.get("weak_dimensions", "")),
+                "red_flags": split_list_field(row.get("red_flags", "")),
+                "missing_items": split_list_field(row.get("missing_items", "")),
+                "revision_actions": split_list_field(row.get("revision_actions", "")),
+                "evidence_summary": summary,
+            }
+        )
+
+    return {
+        "status": "valid" if not errors else "rerun_required",
+        "shard_id": shard.get("shard_id", ""),
+        "expected_or_ids": expected_or_ids,
+        "errors": errors,
+        "results": results if not errors else [],
+    }
+
+
+def md_cell(value: object) -> str:
+    return str(value).replace("\n", " ").replace("|", "\\|")
+
+
+def count_values(results: Sequence[Dict[str, object]], field: str) -> List[tuple[str, int]]:
+    counter: Counter[str] = Counter()
+    for result in results:
+        for value in result.get(field, []):
+            if value:
+                counter[str(value)] += 1
+    return counter.most_common()
+
+
+def load_valid_results(results_dir: Path) -> List[Dict[str, object]]:
+    results = []
+    for path in sorted(results_dir.glob("*.valid.json")):
+        payload = read_json_file(path)
+        if payload.get("status") != "valid":
+            continue
+        results.extend(payload.get("results", []))
+    return results
+
+
+def render_aggregate_report(packet: Dict[str, object], results: Sequence[Dict[str, object]]) -> str:
+    groups = list(packet.get("groups", []))
+    result_by_id = {str(item.get("or_id", "")): item for item in results}
+    expected_ids = [str(item.get("id", "")) for item in groups]
+    missing_ids = [or_id for or_id in expected_ids if or_id not in result_by_id]
+    scored_results = [result_by_id[or_id] for or_id in expected_ids if or_id in result_by_id]
+    average = (
+        sum(float(item["total_score"]) for item in scored_results) / len(scored_results)
+        if scored_results
+        else 0
+    )
+    distribution = Counter(str(item.get("grade", "")) for item in scored_results)
+
+    lines = [
+        "# 需求评估报告",
+        "",
+        "## 1. 评估概览",
+        "",
+        f"- 数据源: `{packet.get('input_path', '')}`",
+    ]
+    for key, value in packet.get("source_info", {}).items():
+        lines.append(f"- {key}: `{value}`")
+    lines.extend(
+        [
+            f"- 参与评估 OR 数: {packet.get('or_count', 0)}",
+            f"- 参与评估 DR 数: {packet.get('dr_count', 0)}",
+            f"- 成功评估 OR 数: {len(scored_results)}",
+            f"- 未评估 OR 数: {len(missing_ids)}",
+            f"- 平均分: {average:.2f}",
+            "",
+            "## 2. OR需求分类统计",
+            "",
+            "| 需求分类 | OR条目数 | 占比 | 是否参与评审 | 排除原因 |",
+            "| --- | ---: | ---: | --- | --- |",
+        ]
+    )
+    for item in packet.get("all_category_counts", []):
+        included = "是" if item.get("included_in_evaluation") else "否"
+        lines.append(
+            f"| {md_cell(item.get('category', ''))} | {item.get('count', 0)} | {item.get('percentage', 0)}% | {included} | {md_cell(item.get('exclusion_reason', '') or '')} |"
+        )
+
+    lines.extend(
+        [
+            "",
+            "## 3. 分数分布",
+            "",
+            "| 等级 | 数量 |",
+            "| --- | ---: |",
+        ]
+    )
+    for grade in ("excellent", "good", "fair", "poor"):
+        lines.append(f"| {grade} | {distribution.get(grade, 0)} |")
+
+    lines.extend(
+        [
+            "",
+            "## 4. 全 OR 分数表",
+            "",
+            "| OR编号 | OR名称 | 总分 | OR部分 | DR平均 | 分解追踪 | 等级 |",
+            "| --- | --- | ---: | ---: | ---: | ---: | --- |",
+        ]
+    )
+    for group in groups:
+        or_id = str(group.get("id", ""))
+        result = result_by_id.get(or_id)
+        if result is None:
+            lines.append(f"| {md_cell(or_id)} | {md_cell(group.get('name', ''))} | 未评估 |  |  |  |  |")
+            continue
+        lines.append(
+            f"| {md_cell(or_id)} | {md_cell(result.get('or_name', group.get('name', '')))} | {result.get('total_score', '')} | {result.get('or_score', '')} | {result.get('dr_average_score', '')} | {result.get('traceability_score', '')} | {result.get('grade', '')} |"
+        )
+
+    def append_counter_section(title: str, values: List[tuple[str, int]]) -> None:
+        lines.extend(["", title, "", "| 项目 | 次数 |", "| --- | ---: |"])
+        if not values:
+            lines.append("| 无 | 0 |")
+            return
+        for value, count in values[:10]:
+            lines.append(f"| {md_cell(value)} | {count} |")
+
+    append_counter_section("## 5. 高频弱项", count_values(scored_results, "weak_dimensions"))
+    append_counter_section("## 6. 高频缺失项", count_values(scored_results, "missing_items"))
+    append_counter_section("## 7. 高频修改建议", count_values(scored_results, "revision_actions"))
+
+    lines.extend(["", "## 8. 低分 OR 详情", ""])
+    for result in sorted(scored_results, key=lambda item: float(item["total_score"]))[:5]:
+        lines.extend(
+            [
+                f"### {result.get('or_id', '')} {result.get('or_name', '')}",
+                "",
+                f"- 总分: {result.get('total_score', '')}",
+                f"- 等级: {result.get('grade', '')}",
+                f"- 弱项: {'; '.join(result.get('weak_dimensions', [])) or '无'}",
+                f"- 红旗问题: {'; '.join(result.get('red_flags', [])) or '无'}",
+                f"- 缺失项: {'; '.join(result.get('missing_items', [])) or '无'}",
+                f"- 修改建议: {'; '.join(result.get('revision_actions', [])) or '无'}",
+                f"- 证据摘要: {result.get('evidence_summary', '')}",
+                "",
+            ]
+        )
+
+    lines.extend(["## 9. 未评估或失败项", ""])
+    if missing_ids:
+        for or_id in missing_ids:
+            lines.append(f"- {or_id}")
+    else:
+        lines.append("- 无")
+    return "\n".join(lines) + "\n"
+
+
+def command_build_packet(args: argparse.Namespace) -> None:
+    input_path = Path(args.input).expanduser().resolve()
+    output_path = Path(args.output).expanduser().resolve() if args.output else input_path.with_suffix(".json")
+    packet = build_packet_from_input(input_path)
+    write_json_file(output_path, packet)
+    print(f"已生成 packet: {output_path}")
+    print(f"OR条目数: {packet['or_count']}")
+
+
+def command_split_shards(args: argparse.Namespace) -> None:
+    packet_path = Path(args.packet).expanduser().resolve()
+    out_dir = Path(args.out_dir).expanduser().resolve()
+    packet = read_json_file(packet_path)
+    records = write_shards_and_prompts(packet, out_dir, args.shard_size)
+    print(f"已生成 shards/prompts: {out_dir}")
+    print(f"分片数: {len(records)}")
+
+
+def command_prepare(args: argparse.Namespace) -> None:
+    input_path = Path(args.input).expanduser().resolve()
+    out_dir = Path(args.out_dir).expanduser().resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    packet = build_packet_from_input(input_path)
+    packet_path = out_dir / "packet.json"
+    write_json_file(packet_path, packet)
+    records = write_shards_and_prompts(packet, out_dir, args.shard_size)
+    (out_dir / "results").mkdir(exist_ok=True)
+    (out_dir / "repairs").mkdir(exist_ok=True)
+    print(f"已生成 packet: {packet_path}")
+    print(f"已生成分片数: {len(records)}")
+    print(f"prompt目录: {out_dir / 'prompts'}")
+
+
+def command_validate_result(args: argparse.Namespace) -> None:
+    shard_path = Path(args.shard).expanduser().resolve()
+    raw_output_path = Path(args.raw_output).expanduser().resolve()
+    output_path = Path(args.output).expanduser().resolve()
+    shard = read_json_file(shard_path)
+    raw_output = raw_output_path.read_text(encoding="utf-8")
+    validation = validate_tsv_output(shard, raw_output)
+    write_json_file(output_path, validation)
+    if validation["status"] == "repairable" and args.repair_prompt:
+        repair_prompt_path = Path(args.repair_prompt).expanduser().resolve()
+        repair_prompt_path.parent.mkdir(parents=True, exist_ok=True)
+        repair_prompt_path.write_text(render_repair_prompt(raw_output), encoding="utf-8")
+        print(f"已生成 repair prompt: {repair_prompt_path}")
+    print(f"validation_status: {validation['status']}")
+    if validation.get("errors"):
+        for error in validation["errors"]:
+            print(f"- {error}")
+
+
+def command_aggregate(args: argparse.Namespace) -> None:
+    packet_path = Path(args.packet).expanduser().resolve()
+    results_dir = Path(args.results_dir).expanduser().resolve()
+    report_path = Path(args.report).expanduser().resolve()
+    packet = read_json_file(packet_path)
+    results = load_valid_results(results_dir)
+    report = render_aggregate_report(packet, results)
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(report, encoding="utf-8")
+    print(f"已生成报告: {report_path}")
+    print(f"已汇总 OR 数: {len(results)}")
+
+
+def main(argv: Sequence[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description="Shard-only requirement evaluation helper.")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    build_parser = subparsers.add_parser("build-packet", help="Build packet.json from Excel/JSON input.")
+    build_parser.add_argument("--input", required=True, help="Path to the input Excel/JSON file.")
+    build_parser.add_argument("--output", help="Path to write packet.json.")
+    build_parser.set_defaults(func=command_build_packet)
+
+    split_parser = subparsers.add_parser("split-shards", help="Split an existing packet.json into shard JSON and prompt files.")
+    split_parser.add_argument("--packet", required=True, help="Path to packet.json.")
+    split_parser.add_argument("--out-dir", required=True, help="Directory for shards/ and prompts/.")
+    split_parser.add_argument("--shard-size", type=int, default=DEFAULT_SHARD_SIZE, help="OR units per shard.")
+    split_parser.set_defaults(func=command_split_shards)
+
+    prepare_parser = subparsers.add_parser("prepare", help="Build packet, split shards, and generate prompts.")
+    prepare_parser.add_argument("--input", required=True, help="Path to the input Excel/JSON file.")
+    prepare_parser.add_argument("--out-dir", required=True, help="Directory for packet/shards/prompts/results/repairs.")
+    prepare_parser.add_argument("--shard-size", type=int, default=DEFAULT_SHARD_SIZE, help="OR units per shard.")
+    prepare_parser.set_defaults(func=command_prepare)
+
+    validate_parser = subparsers.add_parser("validate-result", help="Validate raw model TSV output for one shard.")
+    validate_parser.add_argument("--shard", required=True, help="Path to shard JSON.")
+    validate_parser.add_argument("--raw-output", required=True, help="Path to raw model TSV output.")
+    validate_parser.add_argument("--output", required=True, help="Path to write validation JSON.")
+    validate_parser.add_argument("--repair-prompt", help="Optional path to write repair prompt when output is repairable.")
+    validate_parser.set_defaults(func=command_validate_result)
+
+    aggregate_parser = subparsers.add_parser("aggregate", help="Aggregate validated shard result JSON files into a Markdown report.")
+    aggregate_parser.add_argument("--packet", required=True, help="Path to packet.json.")
+    aggregate_parser.add_argument("--results-dir", required=True, help="Directory containing *.valid.json files.")
+    aggregate_parser.add_argument("--report", required=True, help="Path to write final Markdown report.")
+    aggregate_parser.set_defaults(func=command_aggregate)
+
+    args = parser.parse_args(argv)
+    args.func(args)
 
 
 if __name__ == "__main__":

@@ -40,19 +40,6 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertNotIn("dr_hardware", by_key)
         self.assertNotIn("cross_exceptions", by_key)
 
-    def test_resolve_output_path_uses_input_stem_by_default_or_for_directory(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmp = Path(tmpdir)
-            input_path = (tmp / "requirements.xlsx").resolve()
-
-            default_path = self.module.resolve_output_path(input_path, None, "markdown")
-            directory_path = self.module.resolve_output_path(input_path, str(tmp), "json")
-            explicit_path = self.module.resolve_output_path(input_path, str(tmp / "custom.md"), "markdown")
-
-        self.assertEqual(default_path.name, "requirements.md")
-        self.assertEqual(directory_path.name, "requirements.json")
-        self.assertEqual(explicit_path.name, "custom.md")
-
     def test_build_review_packet_keeps_rows_and_core_fields(self):
         record_1 = self.module.RowRecord(
             index=1,
@@ -198,108 +185,7 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertFalse(by_category["性能"]["included_in_evaluation"])
         self.assertEqual(by_category["性能"]["exclusion_reason"], "分类类型不是功能")
 
-    def test_rendered_markdown_is_a_review_packet_not_a_scored_report(self):
-        packet = {
-            "input_path": "requirements.json",
-            "source_info": {"input_format": "json", "sheet_name": "Sheet1"},
-            "score_structure": {"or_total_weight": 40, "dr_total_weight": 40, "cross_total_weight": 20},
-            "item_count": 1,
-            "or_count": 1,
-            "dr_count": 2,
-            "dimension_count": 1,
-            "dimensions": [{"key": "dr_technical", "name": "DR-技术描述", "weight": 10, "description": "desc"}],
-            "evaluation_filter": {"included_category": "功能"},
-            "all_category_counts": [
-                {
-                    "category": "功能",
-                    "count": 1,
-                    "percentage": 50.0,
-                    "included_in_evaluation": True,
-                    "exclusion_reason": "",
-                    "source_field": "分类类型",
-                },
-                {
-                    "category": "性能",
-                    "count": 1,
-                    "percentage": 50.0,
-                    "included_in_evaluation": False,
-                    "exclusion_reason": "分类类型不是功能",
-                    "source_field": "分类类型",
-                },
-            ],
-            "excluded_or_count": 1,
-            "header_summary": ["OR需求编号", "DR需求描述*"],
-            "groups": [
-                {
-                    "row_indices": [1, 2],
-                    "id": "DOR-1",
-                    "name": "DNS配置",
-                    "category": "功能",
-                    "category_field": "分类类型",
-                    "or_core_fields": {"or_desc": "支持 DNS"},
-                    "or_dimension_view": {},
-                    "dr_count": 2,
-                    "dr_items": [
-                        {
-                            "row_indices": [1],
-                            "id": "DDR-1",
-                            "name": "Ping检测",
-                            "core_fields": {"dr_desc": "IP 0-255"},
-                            "dimension_view": {
-                                "dr_technical": {
-                                    "name": "DR-技术描述",
-                                    "mapped_fields": ["DR需求描述*", "参数规格"],
-                                    "evidence_fields": {"DR需求描述*": ["IP 0-255"]},
-                                    "missing_fields": ["参数规格"],
-                                }
-                            },
-                            "raw_fields": {"DR需求描述*": ["IP 0-255"]},
-                        }
-                    ],
-                    "cross_dimension_view": {
-                        "cross_dependencies": {
-                            "name": "需求分解边界清晰度",
-                            "mapped_fields": ["假设和依赖信息"],
-                            "evidence_fields": {},
-                            "missing_fields": ["假设和依赖信息"],
-                        }
-                    },
-                    "review_skeleton": {
-                        "or_total_score": {"max_score": 100, "score": None, "review_conclusion": None},
-                        "or_part": {"max_score": 40, "score": None, "dimension_scores": []},
-                        "dr_parts": [{"dr_id": "DDR-1", "dr_name": "Ping检测", "max_score": 40, "score": None, "dimension_scores": []}],
-                        "dr_average": {"max_score": 40, "score": None},
-                        "decomposition_quality": {"max_score": 20, "score": None, "dimension_scores": []},
-                        "review_decision": {
-                            "blocking_issues": [],
-                            "triggered_red_line_rules": [],
-                        },
-                    },
-                    "raw_fields": {"OR需求编号": ["DOR-1"], "DR需求描述*": ["IP 0-255"]},
-                }
-            ],
-        }
-
-        rendered = self.module.render_review_packet_markdown(packet)
-
-        self.assertIn("# 需求评审任务包", rendered)
-        self.assertIn("## 评分结构", rendered)
-        self.assertIn("- OR部分: 40", rendered)
-        self.assertIn("- DR数量: 2", rendered)
-        self.assertIn("- 排除OR条目数: 1", rendered)
-        self.assertIn("- 评估分类过滤: `功能`", rendered)
-        self.assertIn("## OR需求分类统计", rendered)
-        self.assertIn("| 性能 | 1 | 50.0% | 否 | 分类类型不是功能 | 分类类型 |", rendered)
-        self.assertIn("- sheet_name: `Sheet1`", rendered)
-        self.assertIn("DR评审单元", rendered)
-        self.assertIn("需求分解与追踪维度视图", rendered)
-        self.assertIn("评分骨架", rendered)
-        self.assertIn("- OR总分槽位: 100", rendered)
-        self.assertNotIn("总分:", rendered)
-        self.assertNotIn("等级:", rendered)
-        self.assertNotIn("design/development/test readiness", rendered)
-
-    def test_cli_json_output_writes_packet(self):
+    def test_cli_build_packet_writes_json_packet(self):
         rows = [
             {
                 "OR需求编号": "DOR-1",
@@ -328,12 +214,11 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
 
             self.module.main(
                 [
+                    "build-packet",
                     "--input",
                     str(input_path),
                     "--output",
                     str(output_path),
-                    "--format",
-                    "json",
                 ]
             )
 
@@ -346,7 +231,7 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertEqual(packet["groups"][0]["name"], "网络检测与诊断")
         self.assertIn("review_skeleton", packet["groups"][0])
 
-    def test_cli_default_output_uses_input_file_stem(self):
+    def test_cli_build_packet_default_output_uses_input_file_stem(self):
         rows = [
             {
                 "OR需求编号": "DOR-1",
@@ -361,14 +246,154 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp = Path(tmpdir)
             input_path = tmp / "requirements.json"
-            output_path = tmp / "requirements.md"
+            output_path = tmp / "requirements.json"
             input_path.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
 
-            self.module.main(["--input", str(input_path)])
+            self.module.main(["build-packet", "--input", str(input_path)])
 
-            rendered = output_path.read_text(encoding="utf-8")
+            packet = json.loads(output_path.read_text(encoding="utf-8"))
 
-        self.assertIn("# 需求评审任务包", rendered)
+        self.assertEqual(packet["or_count"], 1)
+
+    def test_prepare_generates_packet_shards_prompts_and_result_dirs(self):
+        rows = [
+            {
+                "OR需求编号": "DOR-1",
+                "OR需求名称*": "网络检测",
+                "OR需求描述*": "提供网络检测功能。",
+                "分类类型": "功能",
+                "DR需求编号": "DDR-1",
+                "DR需求描述*": "支持 Ping 检测。",
+            },
+            {
+                "OR需求编号": "DOR-2",
+                "OR需求名称*": "诊断导出",
+                "OR需求描述*": "提供诊断导出功能。",
+                "分类类型": "功能",
+                "DR需求编号": "DDR-2",
+                "DR需求描述*": "支持导出诊断日志。",
+            },
+            {
+                "OR需求编号": "DOR-3",
+                "OR需求名称*": "远程维护",
+                "OR需求描述*": "提供远程维护功能。",
+                "分类类型": "功能",
+                "DR需求编号": "DDR-3",
+                "DR需求描述*": "支持远程维护操作。",
+            },
+        ]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            input_path = tmp / "requirements.json"
+            out_dir = tmp / "artifacts"
+            input_path.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
+
+            self.module.main(["prepare", "--input", str(input_path), "--out-dir", str(out_dir), "--shard-size", "2"])
+
+            packet = json.loads((out_dir / "packet.json").read_text(encoding="utf-8"))
+            shard_1 = json.loads((out_dir / "shards" / "shard_0001.json").read_text(encoding="utf-8"))
+            shard_2 = json.loads((out_dir / "shards" / "shard_0002.json").read_text(encoding="utf-8"))
+            prompt = (out_dir / "prompts" / "shard_0001.prompt.txt").read_text(encoding="utf-8")
+            results_dir_exists = (out_dir / "results").exists()
+            repairs_dir_exists = (out_dir / "repairs").exists()
+
+        self.assertEqual(packet["or_count"], 3)
+        self.assertEqual(shard_1["expected_or_ids"], ["DOR-1", "DOR-2"])
+        self.assertEqual(shard_2["expected_or_ids"], ["DOR-3"])
+        self.assertIn("[SCORING_GUIDE]", prompt)
+        self.assertIn("[OUTPUT_TSV_SCHEMA]", prompt)
+        self.assertIn("[SHARD_JSON]", prompt)
+        self.assertTrue(results_dir_exists)
+        self.assertTrue(repairs_dir_exists)
+
+    def test_validate_result_accepts_valid_tsv(self):
+        shard = {
+            "shard_id": "shard_0001",
+            "expected_or_ids": ["DOR-1", "DOR-2"],
+        }
+        raw_tsv = (
+            "or_id\tor_name\ttotal_score\tor_score\tdr_average_score\ttraceability_score\tgrade\tweak_dimensions\tred_flags\tmissing_items\trevision_actions\tevidence_summary\n"
+            "DOR-1\t网络检测\t72\t28\t31\t13\tfair\tDR-异常描述\t缺少异常路径\t验收条件\t补充异常场景\t基本行为明确，但异常和验收不足。\n"
+            "DOR-2\t诊断导出\t81\t32\t34\t15\tgood\tOR-约束和限制\t无\t边界条件\t补充导出边界\t导出行为较清楚，但边界不完整。\n"
+        )
+
+        validation = self.module.validate_tsv_output(shard, raw_tsv)
+
+        self.assertEqual(validation["status"], "valid")
+        self.assertEqual(len(validation["results"]), 2)
+        self.assertEqual(validation["results"][0]["total_score"], 72)
+        self.assertEqual(validation["results"][0]["weak_dimensions"], ["DR-异常描述"])
+
+    def test_validate_result_marks_markdown_table_as_repairable(self):
+        shard = {
+            "shard_id": "shard_0001",
+            "expected_or_ids": ["DOR-1"],
+        }
+        raw_output = (
+            "| or_id | or_name | total_score | or_score | dr_average_score | traceability_score | grade |\n"
+            "| --- | --- | ---: | ---: | ---: | ---: | --- |\n"
+            "| DOR-1 | 网络检测 | 72 | 28 | 31 | 13 | fair |\n"
+        )
+
+        validation = self.module.validate_tsv_output(shard, raw_output)
+
+        self.assertEqual(validation["status"], "repairable")
+
+    def test_validate_result_requires_rerun_when_or_id_is_missing(self):
+        shard = {
+            "shard_id": "shard_0001",
+            "expected_or_ids": ["DOR-1"],
+        }
+        raw_output = "这里只是泛泛总结，没有结构化评分。"
+
+        validation = self.module.validate_tsv_output(shard, raw_output)
+
+        self.assertEqual(validation["status"], "rerun_required")
+
+    def test_aggregate_renders_markdown_report_from_valid_results(self):
+        packet = {
+            "input_path": "requirements.json",
+            "source_info": {"input_format": "json"},
+            "or_count": 2,
+            "dr_count": 2,
+            "all_category_counts": [
+                {
+                    "category": "功能",
+                    "count": 2,
+                    "percentage": 100,
+                    "included_in_evaluation": True,
+                    "exclusion_reason": "",
+                }
+            ],
+            "groups": [
+                {"id": "DOR-1", "name": "网络检测"},
+                {"id": "DOR-2", "name": "诊断导出"},
+            ],
+        }
+        results = [
+            {
+                "or_id": "DOR-1",
+                "or_name": "网络检测",
+                "total_score": 72,
+                "or_score": 28,
+                "dr_average_score": 31,
+                "traceability_score": 13,
+                "grade": "fair",
+                "weak_dimensions": ["DR-异常描述"],
+                "red_flags": ["缺少异常路径"],
+                "missing_items": ["验收条件"],
+                "revision_actions": ["补充异常场景"],
+                "evidence_summary": "基本行为明确，但异常和验收不足。",
+            }
+        ]
+
+        report = self.module.render_aggregate_report(packet, results)
+
+        self.assertIn("# 需求评估报告", report)
+        self.assertIn("- 成功评估 OR 数: 1", report)
+        self.assertIn("| DOR-1 | 网络检测 | 72 | 28 | 31 | 13 | fair |", report)
+        self.assertIn("| DOR-2 | 诊断导出 | 未评估 |", report)
+        self.assertIn("## 9. 未评估或失败项", report)
 
     def test_read_excel_records_active_sheet_name_in_source_info(self):
         try:
