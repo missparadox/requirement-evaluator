@@ -52,7 +52,7 @@ Requirement decomposition and traceability part, 20 points:
 - `DR-异常描述`: Check whether exception paths, error conditions, invalid input handling, failure behavior, and edge scenarios are explicit with clear triggers and expected responses.
 - `需求分解完整性`: Check whether the key capability points in the OR are covered by the linked DR set.
 - `需求分解边界清晰度`: Check whether each DR has a clear responsibility boundary and avoids overlap or duplicate ownership.
-- `需求映射一致性`: Check whether OR, DR, DS, TDR, and TDS align semantically without drift or contradiction.
+- `需求映射一致性`: Check whether OR, DR, and DS align semantically without drift or contradiction.
 
 ## Evidence Tiers
 
@@ -65,6 +65,7 @@ Apply these tiers within each dimension:
 - `Missing`: 0%
 
 Mark a dimension as missing or weak when evidence is not explicit. Do not assume intent. Mark `N/A` only when the dimension is genuinely not applicable, and explain the basis in your internal reasoning before scoring.
+Do not treat a blank or omitted spreadsheet column as evidence of a requirement gap by itself. If the same meaning is stated in OR, DR, or DS text, use that substantive text as evidence instead of marking a missing item only because a dedicated Excel field is blank.
 
 ## Common Negative Signals
 
@@ -166,7 +167,7 @@ If any red-line rule affects the result, include it in `red_flags` or `missing_i
 
 1. Identify the OR ID, name, row range, and category.
 2. Collect all linked DRs under the OR before scoring.
-3. Read OR, DR, DS, TDR, and TDS evidence as one requirement chain when present.
+3. Read OR, DR, and DS evidence as one requirement chain when present.
 4. Score the OR part once.
 5. Score each DR separately, then average DR scores.
 6. Score decomposition and traceability once across the OR and all linked DRs.

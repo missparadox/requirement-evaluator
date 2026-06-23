@@ -142,8 +142,45 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
 
         self.assertIn("dr_testability", dim_view)
         self.assertIn("系统测试要点", dim_view["dr_testability"]["mapped_fields"])
-        self.assertIn("系统测试要点", dim_view["dr_testability"]["missing_fields"])
+        self.assertNotIn("missing_fields", dim_view["dr_testability"])
         self.assertEqual(dim_view["dr_testability"]["evidence_fields"]["参数规格"], ["字段长度 1-64"])
+
+    def test_build_review_packet_excludes_tdr_tds_fields_from_output(self):
+        record = self.module.RowRecord(
+            index=1,
+            grouped={
+                "OR需求编号": ["DOR-3"],
+                "OR需求名称*": ["设备巡检"],
+                "OR需求描述*": ["提供设备巡检能力。"],
+                "分类类型": ["功能"],
+                "DR需求编号": ["DDR-3"],
+                "DR需求描述*": ["支持按计划巡检设备状态。"],
+                "DS需求编号": ["DDS-3"],
+                "DS需求描述*": ["定义巡检结果与状态字段。"],
+                "TDR需求编号": ["TDR-3"],
+                "TDR需求描述*": ["不应进入评估链路。"],
+                "TDS需求编号": ["TDS-3"],
+                "TDS需求描述*": ["也不应进入评估链路。"],
+            },
+        )
+
+        packet = self.module.build_review_packet(
+            input_path=Path("sample.json"),
+            dimensions=self.module.DEFAULT_DIMENSIONS,
+            records=[record],
+            source_info={"input_format": "json"},
+        )
+
+        group = packet["groups"][0]
+        dr_item = group["dr_items"][0]
+        self.assertNotIn("TDR需求编号", packet["header_summary"])
+        self.assertNotIn("TDS需求编号", packet["header_summary"])
+        self.assertNotIn("TDR需求描述*", group["raw_fields"])
+        self.assertNotIn("TDS需求描述*", group["raw_fields"])
+        self.assertNotIn("tdr_id", dr_item["core_fields"])
+        self.assertNotIn("tds_id", dr_item["core_fields"])
+        self.assertNotIn("TDR需求描述*", dr_item["dimension_view"]["dr_technical"]["mapped_fields"])
+        self.assertNotIn("TDS需求描述*", dr_item["dimension_view"]["dr_technical"]["mapped_fields"])
 
     def test_build_review_packet_only_evaluates_functional_requirements(self):
         functional = self.module.RowRecord(
@@ -303,6 +340,7 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertIn("[SCORING_GUIDE]", prompt)
         self.assertIn("[OUTPUT_TSV_SCHEMA]", prompt)
         self.assertIn("[SHARD_JSON]", prompt)
+        self.assertIn("Do not treat a blank or omitted spreadsheet column as a requirement gap by itself.", prompt)
         self.assertTrue(results_dir_exists)
         self.assertTrue(repairs_dir_exists)
 
@@ -395,7 +433,7 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertIn("| DOR-2 | 诊断导出 | 未评估 |", report)
         self.assertIn("## 9. 未评估或失败项", report)
 
-    def test_read_excel_records_active_sheet_name_in_source_info(self):
+    def test_read_excel_reads_sheet1_even_when_it_is_not_active(self):
         try:
             import openpyxl
         except ImportError:
@@ -406,31 +444,34 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
             input_path = tmp / "requirements.xlsx"
 
             workbook = openpyxl.Workbook()
-            default_sheet = workbook.active
-            default_sheet.title = "Sheet1"
-            default_sheet["A1"] = "OR需求编号"
-            default_sheet["B1"] = "OR需求名称*"
-            default_sheet["C1"] = "OR需求描述*"
-            default_sheet["D1"] = "分类类型"
-            default_sheet["E1"] = "DR需求编号"
-            default_sheet["F1"] = "DR需求名称*"
-            default_sheet["G1"] = "DR需求描述*"
+            other_sheet = workbook.active
+            other_sheet.title = "OtherSheet"
+            other_sheet["A1"] = "OR需求编号"
+            other_sheet["A2"] = "WRONG-SHEET"
 
-            default_sheet["A2"] = "DOR-1"
-            default_sheet["B2"] = "网络检测与诊断"
-            default_sheet["C2"] = "提供网络检测与维护功能。"
-            default_sheet["D2"] = "功能"
-            default_sheet["E2"] = "DDR-1"
-            default_sheet["F2"] = "Ping检测"
-            default_sheet["G2"] = "支持 Ping 检测。"
-            default_sheet["E3"] = "DDR-2"
-            default_sheet["F3"] = "Telnet检测"
-            default_sheet["G3"] = "支持 Telnet 检测。"
-            default_sheet.merge_cells("A2:A3")
-            default_sheet.merge_cells("B2:B3")
-            default_sheet.merge_cells("C2:C3")
-            default_sheet.merge_cells("D2:D3")
-            workbook.create_sheet("OtherSheet")
+            sheet = workbook.create_sheet("Sheet1")
+            sheet["A1"] = "OR需求编号"
+            sheet["B1"] = "OR需求名称*"
+            sheet["C1"] = "OR需求描述*"
+            sheet["D1"] = "分类类型"
+            sheet["E1"] = "DR需求编号"
+            sheet["F1"] = "DR需求名称*"
+            sheet["G1"] = "DR需求描述*"
+
+            sheet["A2"] = "DOR-1"
+            sheet["B2"] = "网络检测与诊断"
+            sheet["C2"] = "提供网络检测与维护功能。"
+            sheet["D2"] = "功能"
+            sheet["E2"] = "DDR-1"
+            sheet["F2"] = "Ping检测"
+            sheet["G2"] = "支持 Ping 检测。"
+            sheet["E3"] = "DDR-2"
+            sheet["F3"] = "Telnet检测"
+            sheet["G3"] = "支持 Telnet 检测。"
+            sheet.merge_cells("A2:A3")
+            sheet.merge_cells("B2:B3")
+            sheet.merge_cells("C2:C3")
+            sheet.merge_cells("D2:D3")
             workbook.save(input_path)
 
             result = self.module.read_excel(input_path)
@@ -440,6 +481,25 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertEqual(len(result.records), 2)
         self.assertEqual(result.records[1].first("OR需求编号"), "DOR-1")
         self.assertEqual(result.records[1].first("OR需求名称*"), "网络检测与诊断")
+
+    def test_read_excel_requires_sheet1(self):
+        try:
+            import openpyxl
+        except ImportError:
+            self.skipTest("openpyxl is not installed in the current test environment")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            input_path = tmp / "requirements.xlsx"
+
+            workbook = openpyxl.Workbook()
+            workbook.active.title = "OtherSheet"
+            workbook.save(input_path)
+
+            with self.assertRaises(SystemExit) as ctx:
+                self.module.read_excel(input_path)
+
+        self.assertIn("Sheet1", str(ctx.exception))
 
 
     def test_missing_excel_dependency_message_contains_install_command(self):

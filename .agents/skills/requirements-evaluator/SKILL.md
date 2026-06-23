@@ -84,10 +84,10 @@ The script supports:
 
 Excel handling:
 
-- Read only the active sheet.
+- Read only `Sheet1`.
 - Record the actual `sheet_name` in `packet.json`.
 - Expand merged-cell evidence before grouping rows.
-- Preserve original field names and repeated headers.
+- Preserve original field names and repeated headers, except `TDR/TDS` fields which are excluded from processing.
 
 Evaluation scope:
 

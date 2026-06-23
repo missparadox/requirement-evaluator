@@ -15,6 +15,7 @@ from typing import Dict, List, Sequence
 
 EVALUATED_REQUIREMENT_CATEGORY = "功能"
 DEFAULT_SHARD_SIZE = 2
+REQUIRED_SHEET_NAME = "Sheet1"
 SKILL_DIR = Path(__file__).resolve().parents[1]
 REFERENCES_DIR = SKILL_DIR / "references"
 SCORING_GUIDE_FILE = REFERENCES_DIR / "scoring-guide.md"
@@ -42,6 +43,14 @@ CATEGORY_FIELD_CANDIDATES = (
     "OR需求类型",
     "需求分类类型",
 )
+EXCLUDED_SOURCE_FIELDS = {
+    "TDR需求编号",
+    "TDR需求名称*",
+    "TDR需求描述*",
+    "TDS需求编号",
+    "TDS需求名称*",
+    "TDS需求描述*",
+}
 
 DEFAULT_DIMENSIONS = [
     {
@@ -114,7 +123,7 @@ DEFAULT_DIMENSIONS = [
         "key": "cross_traceability",
         "name": "需求映射一致性",
         "weight": 7,
-        "description": "OR 与各 DR 是否语义一致、范围匹配、无明显偏题或冲突，且 DS/TDR/TDS 与该链路一致",
+        "description": "OR 与各 DR 是否语义一致、范围匹配、无明显偏题或冲突，且 DS 与该链路一致",
     },
 ]
 
@@ -143,12 +152,6 @@ CORE_FIELD_MAP = {
     "subsystem": "所属子系统",
     "ds_dependencies": "假设和依赖信息",
     "ds_verify": "验证方法描述",
-    "tdr_id": "TDR需求编号",
-    "tdr_name": "TDR需求名称*",
-    "tdr_desc": "TDR需求描述*",
-    "tds_id": "TDS需求编号",
-    "tds_name": "TDS需求名称*",
-    "tds_desc": "TDS需求描述*",
 }
 
 OR_CORE_ALIASES = (
@@ -180,12 +183,6 @@ DR_CORE_ALIASES = (
     "subsystem",
     "ds_dependencies",
     "ds_verify",
-    "tdr_id",
-    "tdr_name",
-    "tdr_desc",
-    "tds_id",
-    "tds_name",
-    "tds_desc",
 )
 
 DIMENSION_FIELD_MAP = {
@@ -193,14 +190,14 @@ DIMENSION_FIELD_MAP = {
     "or_scenario": ["应用场景", "操作场景", "OR需求描述*", "更多描述信息"],
     "or_user_value": ["客户问题", "价值描述", "需求来源", "OR需求描述*"],
     "or_constraints": ["约束与限制", "国家/区域", "安全约束", "集成方式", "更多描述信息"],
-    "dr_security": ["安全约束", "DR需求描述*", "TDR需求描述*"],
-    "dr_technical": ["DR需求描述*", "DS需求描述*", "TDR需求描述*", "TDS需求描述*", "集成方式", "参数规格", "规格分类", "所属子系统"],
+    "dr_security": ["安全约束", "DR需求描述*"],
+    "dr_technical": ["DR需求描述*", "DS需求描述*", "集成方式", "参数规格", "规格分类", "所属子系统"],
     "dr_testability": ["系统测试要点", "验证方法描述", "参数规格", "DR需求描述*", "DS需求描述*"],
-    "dr_ambiguity": ["参数规格", "DR需求描述*", "TDR需求描述*"],
+    "dr_ambiguity": ["参数规格", "DR需求描述*"],
     "dr_exception": ["DR需求描述*", "系统测试要点", "验证方法描述", "安全约束", "更多描述信息"],
-    "cross_scope": ["OR需求描述*", "DR需求描述*", "DS需求描述*", "TDR需求描述*", "TDS需求描述*"],
-    "cross_dependencies": ["假设和依赖信息", "所属子系统", "国家/区域", "需求来源", "集成方式", "约束与限制", "DS需求描述*", "TDS需求描述*"],
-    "cross_traceability": ["OR需求编号", "DR需求编号", "DS需求编号", "TDR需求编号", "TDS需求编号", "ORURL", "DRURL", "DSURL", "TDRURL", "TDSURL"],
+    "cross_scope": ["OR需求描述*", "DR需求描述*", "DS需求描述*"],
+    "cross_dependencies": ["假设和依赖信息", "所属子系统", "国家/区域", "需求来源", "集成方式", "约束与限制", "DS需求描述*"],
+    "cross_traceability": ["OR需求编号", "DR需求编号", "DS需求编号", "ORURL", "DRURL", "DSURL"],
 }
 
 
@@ -228,6 +225,14 @@ def clean_text(value: str) -> str:
 
 def build_dimensions() -> List[Dict[str, object]]:
     return [dict(item) for item in DEFAULT_DIMENSIONS]
+
+
+def sanitize_grouped(grouped: Dict[str, List[str]]) -> Dict[str, List[str]]:
+    return {
+        key: values
+        for key, values in grouped.items()
+        if key not in EXCLUDED_SOURCE_FIELDS
+    }
 
 
 def missing_runtime_dependencies(path: Path) -> List[str]:
@@ -258,7 +263,9 @@ def read_excel(path: Path) -> ReadResult:
     except ImportError as exc:
         raise SystemExit("读取 Excel 需要安装 openpyxl") from exc
     workbook = load_workbook(path, read_only=False, data_only=True)
-    sheet = workbook.active
+    if REQUIRED_SHEET_NAME not in workbook.sheetnames:
+        raise SystemExit(f"Excel 输入必须包含工作表 {REQUIRED_SHEET_NAME}")
+    sheet = workbook[REQUIRED_SHEET_NAME]
     source_info = {
         "input_format": path.suffix.lower().lstrip("."),
         "sheet_name": sheet.title,
@@ -291,7 +298,7 @@ def read_excel(path: Path) -> ReadResult:
         values = [cell_value(row_index, col) for col in range(1, len(header) + 1)]
         for name, value in zip(header, values):
             grouped[name].append(value)
-        records.append(RowRecord(index=row_index - 1, grouped=dict(grouped)))
+        records.append(RowRecord(index=row_index - 1, grouped=sanitize_grouped(dict(grouped))))
     return ReadResult(records=records, source_info=source_info)
 
 
@@ -308,7 +315,9 @@ def read_json(path: Path) -> ReadResult:
     for idx, item in enumerate(data, start=1):
         if not isinstance(item, dict):
             continue
-        grouped = {str(key): ["" if value is None else str(value)] for key, value in item.items()}
+        grouped = sanitize_grouped(
+            {str(key): ["" if value is None else str(value)] for key, value in item.items()}
+        )
         records.append(RowRecord(index=idx, grouped=grouped))
     return ReadResult(
         records=records,
@@ -335,6 +344,8 @@ def summarize_headers(records: Sequence[RowRecord]) -> List[str]:
     seen = set()
     for record in records:
         for key in record.grouped:
+            if key in EXCLUDED_SOURCE_FIELDS:
+                continue
             if key not in seen:
                 seen.add(key)
                 headers.append(key)
@@ -369,6 +380,8 @@ def merge_records(records: Sequence[RowRecord]) -> RowRecord:
     grouped: Dict[str, List[str]] = defaultdict(list)
     for record in records:
         for key, values in record.grouped.items():
+            if key in EXCLUDED_SOURCE_FIELDS:
+                continue
             for value in values:
                 text = clean_text(value)
                 if not text:
@@ -382,6 +395,7 @@ def build_raw_fields(record: RowRecord) -> Dict[str, List[str]]:
     return {
         key: [clean_text(value) for value in values if clean_text(value)]
         for key, values in record.grouped.items()
+        if key not in EXCLUDED_SOURCE_FIELDS
         if any(clean_text(value) for value in values)
     }
 
@@ -526,18 +540,14 @@ def build_dimension_view(record: RowRecord, dimensions: Sequence[Dict[str, objec
         key = str(dimension["key"])
         mapped_fields = DIMENSION_FIELD_MAP.get(key, [])
         evidence_fields = {}
-        missing_fields = []
         for field in mapped_fields:
             values = [clean_text(value) for value in record.grouped.get(field, []) if clean_text(value)]
             if values:
                 evidence_fields[field] = values
-            else:
-                missing_fields.append(field)
         view[key] = {
             "name": dimension["name"],
             "mapped_fields": mapped_fields,
             "evidence_fields": evidence_fields,
-            "missing_fields": missing_fields,
         }
     return view
 
@@ -685,6 +695,9 @@ def render_shard_prompt(shard: Dict[str, object]) -> str:
         "You are evaluating one independent requirements shard.\n"
         "Use only the evidence in SHARD_JSON. Do not use prior conversation context.\n"
         "Apply the complete SCORING_GUIDE and output exactly the TSV required by OUTPUT_TSV_SCHEMA.\n"
+        "Do not treat a blank or omitted spreadsheet column as a requirement gap by itself.\n"
+        "Judge missing_items from the substantive OR/DR/DS requirement text and other non-empty evidence in SHARD_JSON.\n"
+        "If a dedicated Excel column is blank but the same meaning is stated elsewhere in the requirement description, do not mark it as missing for that reason.\n"
         "Do not output Markdown, explanations, JSON, code fences, or any text outside the TSV.\n\n"
         "[SCORING_GUIDE]\n"
         f"{scoring_guide}\n\n"
