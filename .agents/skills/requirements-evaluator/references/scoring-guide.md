@@ -171,5 +171,6 @@ If any red-line rule affects the result, include it in `red_flags` or `missing_i
 4. Score the OR part once.
 5. Score each DR separately, then average DR scores.
 6. Score decomposition and traceability once across the OR and all linked DRs.
-7. Apply red-line caps.
-8. Output exactly one TSV row for the OR.
+7. Assign a numeric score to every scoring dimension and make sure the dimension sums equal `or_score`, `dr_average_score`, and `traceability_score`.
+8. Apply red-line caps.
+9. Output exactly one TSV row for the OR.

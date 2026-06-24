@@ -17,6 +17,14 @@ def load_module():
     return module
 
 
+def build_valid_tsv(module, rows):
+    header = "\t".join(module.TSV_COLUMNS)
+    lines = [header]
+    for row in rows:
+        lines.append("\t".join(str(row[column]) for column in module.TSV_COLUMNS))
+    return "\n".join(lines) + "\n"
+
+
 class RequirementsEvaluatorPacketTests(unittest.TestCase):
     def setUp(self):
         self.module = load_module()
@@ -331,12 +339,17 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
             shard_1 = json.loads((out_dir / "shards" / "shard_0001.json").read_text(encoding="utf-8"))
             shard_2 = json.loads((out_dir / "shards" / "shard_0002.json").read_text(encoding="utf-8"))
             prompt = (out_dir / "prompts" / "shard_0001.prompt.txt").read_text(encoding="utf-8")
+            state = json.loads((out_dir / "run_state.json").read_text(encoding="utf-8"))
             results_dir_exists = (out_dir / "results").exists()
             repairs_dir_exists = (out_dir / "repairs").exists()
 
         self.assertEqual(packet["or_count"], 3)
         self.assertEqual(shard_1["expected_or_ids"], ["DOR-1", "DOR-2"])
         self.assertEqual(shard_2["expected_or_ids"], ["DOR-3"])
+        self.assertEqual(state["overall_status"], "pending")
+        self.assertEqual(len(state["shards"]), 2)
+        self.assertEqual(state["shards"][0]["status"], "pending")
+        self.assertEqual(state["shards"][0]["next_action"], "evaluate")
         self.assertIn("[SCORING_GUIDE]", prompt)
         self.assertIn("[OUTPUT_TSV_SCHEMA]", prompt)
         self.assertIn("[SHARD_JSON]", prompt)
@@ -349,10 +362,62 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
             "shard_id": "shard_0001",
             "expected_or_ids": ["DOR-1", "DOR-2"],
         }
-        raw_tsv = (
-            "or_id\tor_name\ttotal_score\tor_score\tdr_average_score\ttraceability_score\tgrade\tweak_dimensions\tred_flags\tmissing_items\trevision_actions\tevidence_summary\n"
-            "DOR-1\t网络检测\t72\t28\t31\t13\tfair\tDR-异常描述\t缺少异常路径\t验收条件\t补充异常场景\t基本行为明确，但异常和验收不足。\n"
-            "DOR-2\t诊断导出\t81\t32\t34\t15\tgood\tOR-约束和限制\t无\t边界条件\t补充导出边界\t导出行为较清楚，但边界不完整。\n"
+        raw_tsv = build_valid_tsv(
+            self.module,
+            [
+                {
+                    "or_id": "DOR-1",
+                    "or_name": "网络检测",
+                    "total_score": 72,
+                    "or_score": 28,
+                    "dr_average_score": 31,
+                    "traceability_score": 13,
+                    "or_user_language_score": 9,
+                    "or_scenario_score": 7,
+                    "or_user_value_score": 8,
+                    "or_constraints_score": 4,
+                    "dr_security_score": 4,
+                    "dr_technical_score": 8,
+                    "dr_testability_score": 7,
+                    "dr_ambiguity_score": 6,
+                    "dr_exception_score": 6,
+                    "cross_scope_score": 5,
+                    "cross_dependencies_score": 4,
+                    "cross_traceability_score": 4,
+                    "grade": "fair",
+                    "weak_dimensions": "DR-异常描述",
+                    "red_flags": "缺少异常路径",
+                    "missing_items": "验收条件",
+                    "revision_actions": "补充异常场景",
+                    "evidence_summary": "基本行为明确，但异常和验收不足。",
+                },
+                {
+                    "or_id": "DOR-2",
+                    "or_name": "诊断导出",
+                    "total_score": 81,
+                    "or_score": 32,
+                    "dr_average_score": 34,
+                    "traceability_score": 15,
+                    "or_user_language_score": 10,
+                    "or_scenario_score": 9,
+                    "or_user_value_score": 8,
+                    "or_constraints_score": 5,
+                    "dr_security_score": 4,
+                    "dr_technical_score": 9,
+                    "dr_testability_score": 8,
+                    "dr_ambiguity_score": 7,
+                    "dr_exception_score": 6,
+                    "cross_scope_score": 5,
+                    "cross_dependencies_score": 5,
+                    "cross_traceability_score": 5,
+                    "grade": "good",
+                    "weak_dimensions": "OR-约束和限制",
+                    "red_flags": "无",
+                    "missing_items": "边界条件",
+                    "revision_actions": "补充导出边界",
+                    "evidence_summary": "导出行为较清楚，但边界不完整。",
+                },
+            ],
         )
 
         validation = self.module.validate_tsv_output(shard, raw_tsv)
@@ -361,21 +426,62 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertEqual(len(validation["results"]), 2)
         self.assertEqual(validation["results"][0]["total_score"], 72)
         self.assertEqual(validation["results"][0]["weak_dimensions"], ["DR-异常描述"])
+        self.assertEqual(validation["results"][0]["dimension_scores"]["dr_exception"], 6)
 
     def test_validate_result_marks_markdown_table_as_repairable(self):
-        shard = {
-            "shard_id": "shard_0001",
-            "expected_or_ids": ["DOR-1"],
-        }
-        raw_output = (
-            "| or_id | or_name | total_score | or_score | dr_average_score | traceability_score | grade |\n"
-            "| --- | --- | ---: | ---: | ---: | ---: | --- |\n"
-            "| DOR-1 | 网络检测 | 72 | 28 | 31 | 13 | fair |\n"
-        )
+        rows = [
+            {
+                "OR需求编号": "DOR-1",
+                "OR需求名称*": "网络检测",
+                "OR需求描述*": "提供网络检测功能。",
+                "分类类型": "功能",
+                "DR需求编号": "DDR-1",
+                "DR需求描述*": "支持 Ping 检测。",
+            }
+        ]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            input_path = tmp / "requirements.json"
+            out_dir = tmp / "artifacts"
+            input_path.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
 
-        validation = self.module.validate_tsv_output(shard, raw_output)
+            self.module.main(["prepare", "--input", str(input_path), "--out-dir", str(out_dir)])
+
+            shard_path = out_dir / "shards" / "shard_0001.json"
+            raw_output_path = out_dir / "results" / "shard_0001.raw.tsv"
+            valid_output_path = out_dir / "results" / "shard_0001.valid.json"
+            repair_prompt_path = out_dir / "repairs" / "shard_0001.repair_prompt.txt"
+            raw_output = (
+                "| or_id | or_name | total_score | or_score | dr_average_score | traceability_score | grade |\n"
+                "| --- | --- | ---: | ---: | ---: | ---: | --- |\n"
+                "| DOR-1 | 网络检测 | 72 | 28 | 31 | 13 | fair |\n"
+            )
+            raw_output_path.write_text(raw_output, encoding="utf-8")
+
+            self.module.main(
+                [
+                    "validate-result",
+                    "--shard",
+                    str(shard_path),
+                    "--raw-output",
+                    str(raw_output_path),
+                    "--output",
+                    str(valid_output_path),
+                    "--repair-prompt",
+                    str(repair_prompt_path),
+                ]
+            )
+
+            validation = json.loads(valid_output_path.read_text(encoding="utf-8"))
+            state = json.loads((out_dir / "run_state.json").read_text(encoding="utf-8"))
+            repair_prompt_exists = repair_prompt_path.exists()
 
         self.assertEqual(validation["status"], "repairable")
+        self.assertTrue(repair_prompt_exists)
+        self.assertEqual(state["overall_status"], "repair_required")
+        self.assertEqual(state["shards"][0]["status"], "repairable")
+        self.assertEqual(state["shards"][0]["next_action"], "repair")
+        self.assertEqual(state["shards"][0]["attempt_counts"]["raw"], 1)
 
     def test_validate_result_requires_rerun_when_or_id_is_missing(self):
         shard = {
@@ -431,7 +537,90 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertIn("- 成功评估 OR 数: 1", report)
         self.assertIn("| DOR-1 | 网络检测 | 72 | 28 | 31 | 13 | fair |", report)
         self.assertIn("| DOR-2 | 诊断导出 | 未评估 |", report)
-        self.assertIn("## 9. 未评估或失败项", report)
+        self.assertIn("## 6. 维度均分画像", report)
+        self.assertIn("## 10. 未评估或失败项", report)
+
+    def test_build_report_summary_contains_dimension_summary(self):
+        packet = {
+            "input_path": "/tmp/project-a.xlsx",
+            "source_info": {"input_format": "xlsx", "sheet_name": "Sheet1"},
+            "or_count": 1,
+            "dr_count": 1,
+            "groups": [{"id": "DOR-1", "name": "网络检测"}],
+        }
+        results = [
+            {
+                "or_id": "DOR-1",
+                "or_name": "网络检测",
+                "total_score": 72,
+                "or_score": 28,
+                "dr_average_score": 31,
+                "traceability_score": 13,
+                "dimension_scores": {
+                    "or_user_language": 9,
+                    "or_scenario": 7,
+                    "or_user_value": 8,
+                    "or_constraints": 4,
+                    "dr_security": 4,
+                    "dr_technical": 8,
+                    "dr_testability": 7,
+                    "dr_ambiguity": 6,
+                    "dr_exception": 6,
+                    "cross_scope": 5,
+                    "cross_dependencies": 4,
+                    "cross_traceability": 4,
+                },
+                "grade": "fair",
+                "weak_dimensions": ["DR-异常描述"],
+                "red_flags": ["缺少异常路径"],
+                "missing_items": ["验收条件"],
+                "revision_actions": ["补充异常场景"],
+                "evidence_summary": "基本行为明确，但异常和验收不足。",
+            }
+        ]
+
+        summary = self.module.build_report_summary(packet, results, Path("/tmp/project-a.md"))
+
+        self.assertEqual(summary["project_name"], "project-a")
+        self.assertEqual(summary["average_score"], 72.0)
+        self.assertEqual(summary["dimension_summary"][0]["key"], "or_user_language")
+        self.assertEqual(summary["dimension_summary"][0]["normalized_average_score"], 75.0)
+        self.assertEqual(summary["weak_dimensions"][0]["name"], "需求映射一致性")
+
+    def test_aggregate_requires_all_shards_valid_when_state_exists(self):
+        rows = [
+            {
+                "OR需求编号": "DOR-1",
+                "OR需求名称*": "网络检测",
+                "OR需求描述*": "提供网络检测功能。",
+                "分类类型": "功能",
+                "DR需求编号": "DDR-1",
+                "DR需求描述*": "支持 Ping 检测。",
+            }
+        ]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            input_path = tmp / "requirements.json"
+            out_dir = tmp / "artifacts"
+            report_path = tmp / "report.md"
+            input_path.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
+
+            self.module.main(["prepare", "--input", str(input_path), "--out-dir", str(out_dir)])
+
+            with self.assertRaises(SystemExit) as ctx:
+                self.module.main(
+                    [
+                        "aggregate",
+                        "--packet",
+                        str(out_dir / "packet.json"),
+                        "--results-dir",
+                        str(out_dir / "results"),
+                        "--report",
+                        str(report_path),
+                    ]
+                )
+
+        self.assertIn("尚未通过验证", str(ctx.exception))
 
     def test_read_excel_reads_sheet1_even_when_it_is_not_active(self):
         try:

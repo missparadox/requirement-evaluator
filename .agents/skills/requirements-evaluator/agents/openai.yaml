@@ -1,4 +1,4 @@
 interface:
   display_name: "Requirements Evaluator"
   short_description: "Score requirement docs and surface quality gaps."
-  default_prompt: "Use $requirements-evaluator to review a requirement packet and generate the final Chinese evaluation report."
+  default_prompt: "Use $requirements-evaluator to run the full single-project requirements evaluation workflow and generate the final Chinese evaluation report plus the matching summary JSON."
