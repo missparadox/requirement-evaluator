@@ -160,7 +160,7 @@ def render_markdown_summary(projects: Sequence[Dict[str, object]]) -> str:
         "",
         f"- 项目数: {len(ranked)}",
         f"- 项目集平均分: {portfolio_average:.2f}",
-        "- 对比口径: 基于单项目 summary JSON 中的 12 维度标准化均分进行横向比较。",
+        f"- 对比口径: 基于单项目 summary JSON 中的 {len(baselines)} 维度标准化均分进行横向比较。",
         "",
         "## 2. 项目总分对比",
         "",

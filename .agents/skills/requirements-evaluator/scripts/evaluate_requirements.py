@@ -43,74 +43,62 @@ DEFAULT_DIMENSIONS = [
     {
         "key": "or_user_language",
         "name": "OR-用户语言描述",
-        "weight": 12,
+        "weight": 14,
         "description": "需求描述是否采用用户语言，避免技术术语，让非技术人员也能理解",
     },
     {
         "key": "or_scenario",
         "name": "OR-应用场景",
-        "weight": 12,
+        "weight": 14,
         "description": "是否清晰描述了用户需求的应用场景，包括使用环境和上下文",
     },
     {
         "key": "or_user_value",
         "name": "OR-用户价值",
-        "weight": 10,
+        "weight": 12,
         "description": "是否讲清楚解决的用户问题和带来的用户价值",
-    },
-    {
-        "key": "or_constraints",
-        "name": "OR-约束和限制",
-        "weight": 6,
-        "description": "是否明确约束和限制（如部署方式、合规性、性能指标等）",
     },
     {
         "key": "dr_security",
         "name": "DR-安全分析",
-        "weight": 5,
-        "description": "是否进行安全分析，描述对应的安全红线需求",
-    },
-    {
-        "key": "dr_technical",
-        "name": "DR-技术描述",
-        "weight": 10,
-        "description": "是否使用技术语言进行设计需求描述，功能描述清晰全面，包含正常情况和异常处理",
+        "weight": 6,
+        "description": "是否识别涉及安全红线的业务部分，并说明其需要满足的安全要求",
     },
     {
         "key": "dr_testability",
         "name": "DR-可测试性",
-        "weight": 10,
-        "description": "是否定量描述，对照 DR 能直接写出测试用例",
+        "weight": 16,
+        "description": "是否使用技术语言清楚描述行为、输入、输出、条件、边界和结果，能够直接导出测试与验收标准",
     },
     {
         "key": "dr_ambiguity",
         "name": "DR-无歧义性",
-        "weight": 8,
-        "description": "参数规格是否清晰，无歧义",
+        "weight": 10,
+        "description": "术语、对象、范围、状态和结果判定是否只有一种合理理解",
     },
     {
         "key": "dr_exception",
         "name": "DR-异常描述",
-        "weight": 7,
+        "weight": 8,
         "description": "是否明确异常路径、错误条件、非法输入处理、失败行为和边界场景",
     },
     {
         "key": "cross_scope",
         "name": "需求分解完整性",
         "weight": 7,
-        "description": "是否覆盖 OR 的关键能力点，多个 DR 合起来是否形成完整分解，是否存在明显漏拆",
+        "description": "OR 显式提出的关键目标、子目标和关键场景是否都被 DR 正面承接，是否存在明显漏拆",
     },
     {
         "key": "cross_dependencies",
         "name": "需求分解边界清晰度",
         "weight": 6,
-        "description": "各 DR 之间的职责边界是否清楚，是否存在交叉、重复拆解或责任不清",
+        "description": "各 DR 的职责边界是否清楚，核心承接 DR 与支撑型 DR 是否区分明确，是否存在交叉或混写",
     },
     {
         "key": "cross_traceability",
         "name": "需求映射一致性",
         "weight": 7,
-        "description": "OR 与各 DR 是否语义一致、范围匹配、无明显偏题或冲突，且 DS 与该链路一致",
+        "description": "各 DR 是否在语义上直接回应 OR 的目标、对象、条件和结果，而不是只有主题相关",
     },
 ]
 DIMENSION_COLUMN_SPECS = tuple(
@@ -199,15 +187,13 @@ DIMENSION_FIELD_MAP = {
     "or_user_language": ["OR需求名称*", "OR需求描述*", "更多描述信息"],
     "or_scenario": ["应用场景", "操作场景", "OR需求描述*", "更多描述信息"],
     "or_user_value": ["客户问题", "价值描述", "需求来源", "OR需求描述*"],
-    "or_constraints": ["约束与限制", "国家/区域", "安全约束", "集成方式", "更多描述信息"],
-    "dr_security": ["安全约束", "DR需求描述*"],
-    "dr_technical": ["DR需求描述*", "DS需求描述*", "集成方式", "参数规格", "规格分类", "所属子系统"],
-    "dr_testability": ["系统测试要点", "验证方法描述", "参数规格", "DR需求描述*", "DS需求描述*"],
-    "dr_ambiguity": ["参数规格", "DR需求描述*"],
+    "dr_security": ["安全约束", "DR需求描述*", "更多描述信息"],
+    "dr_testability": ["系统测试要点", "验证方法描述", "参数规格", "DR需求描述*", "集成方式"],
+    "dr_ambiguity": ["参数规格", "DR需求描述*", "DS需求描述*"],
     "dr_exception": ["DR需求描述*", "系统测试要点", "验证方法描述", "安全约束", "更多描述信息"],
-    "cross_scope": ["OR需求描述*", "DR需求描述*", "DS需求描述*"],
-    "cross_dependencies": ["假设和依赖信息", "所属子系统", "国家/区域", "需求来源", "集成方式", "约束与限制", "DS需求描述*"],
-    "cross_traceability": ["OR需求编号", "DR需求编号", "DS需求编号", "ORURL", "DRURL", "DSURL"],
+    "cross_scope": ["OR需求描述*", "DR需求名称*", "DR需求描述*"],
+    "cross_dependencies": ["DR需求名称*", "DR需求描述*", "所属子系统", "假设和依赖信息", "集成方式", "规格分类"],
+    "cross_traceability": ["OR需求编号", "OR需求名称*", "OR需求描述*", "DR需求编号", "DR需求名称*", "DR需求描述*", "ORURL", "DRURL"],
 }
 
 
@@ -1067,7 +1053,9 @@ def build_dimension_summary(results: Sequence[Dict[str, object]]) -> List[Dict[s
     specs = dimension_score_spec_by_key()
     summary = []
     result_count = len(results)
-    for key, spec in specs.items():
+    ordered_keys = [str(item["key"]) for item in DIMENSION_COLUMN_SPECS]
+    for key in ordered_keys:
+        spec = specs[key]
         scores = [
             float(result.get("dimension_scores", {}).get(key, 0))
             for result in results
@@ -1174,13 +1162,14 @@ def render_aggregate_report(packet: Dict[str, object], results: Sequence[Dict[st
     ]
     for key, value in packet.get("source_info", {}).items():
         lines.append(f"- {key}: `{value}`")
-    lines.extend(
+        lines.extend(
         [
             f"- 参与评估 OR 数: {packet.get('or_count', 0)}",
             f"- 参与评估 DR 数: {packet.get('dr_count', 0)}",
             f"- 成功评估 OR 数: {len(scored_results)}",
             f"- 未评估 OR 数: {len(missing_ids)}",
             f"- 平均分: {average:.2f}",
+            "- 评分结构: OR(用户语言描述 14 / 应用场景 14 / 用户价值 12) + DR(安全分析 6 / 可测试性 16 / 无歧义性 10 / 异常描述 8) + 分解映射(完整性 7 / 边界清晰度 6 / 映射一致性 7)",
             "",
             "## 2. OR需求分类统计",
             "",
@@ -1206,12 +1195,12 @@ def render_aggregate_report(packet: Dict[str, object], results: Sequence[Dict[st
     for grade in ("excellent", "good", "fair", "poor"):
         lines.append(f"| {grade} | {distribution.get(grade, 0)} |")
 
-    lines.extend(
+        lines.extend(
         [
             "",
             "## 4. 全 OR 分数表",
             "",
-            "| OR编号 | OR名称 | 总分 | OR部分 | DR平均 | 分解追踪 | 等级 |",
+            "| OR编号 | OR名称 | 总分 | OR部分 | DR平均 | 分解映射 | 等级 |",
             "| --- | --- | ---: | ---: | ---: | ---: | --- |",
         ]
     )
@@ -1272,7 +1261,7 @@ def render_aggregate_report(packet: Dict[str, object], results: Sequence[Dict[st
                 f"- 等级: {result.get('grade', '')}",
                 f"- 维度分: {dimension_score_text}",
                 f"- 弱项: {'; '.join(result.get('weak_dimensions', [])) or '无'}",
-                f"- 红旗问题: {'; '.join(result.get('red_flags', [])) or '无'}",
+                f"- 触发红线: {'; '.join(result.get('red_flags', [])) or '无'}",
                 f"- 缺失项: {'; '.join(result.get('missing_items', [])) or '无'}",
                 f"- 修改建议: {'; '.join(result.get('revision_actions', [])) or '无'}",
                 f"- 证据摘要: {result.get('evidence_summary', '')}",

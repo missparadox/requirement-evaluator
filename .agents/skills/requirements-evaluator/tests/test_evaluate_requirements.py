@@ -32,11 +32,11 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
     def test_build_dimensions_returns_default_rubric(self):
         dimensions = self.module.build_dimensions()
         by_key = {item["key"]: item for item in dimensions}
-        self.assertEqual(by_key["or_user_language"]["weight"], 12)
-        self.assertEqual(by_key["dr_security"]["weight"], 5)
-        self.assertEqual(by_key["dr_technical"]["weight"], 10)
-        self.assertEqual(by_key["dr_ambiguity"]["weight"], 8)
-        self.assertEqual(by_key["dr_exception"]["weight"], 7)
+        self.assertEqual(by_key["or_user_language"]["weight"], 14)
+        self.assertEqual(by_key["dr_security"]["weight"], 6)
+        self.assertEqual(by_key["dr_testability"]["weight"], 16)
+        self.assertEqual(by_key["dr_ambiguity"]["weight"], 10)
+        self.assertEqual(by_key["dr_exception"]["weight"], 8)
         self.assertEqual(by_key["cross_scope"]["weight"], 7)
         self.assertEqual(by_key["cross_dependencies"]["weight"], 6)
         self.assertEqual(by_key["cross_traceability"]["weight"], 7)
@@ -44,8 +44,10 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertEqual(sum(item["weight"] for item in dimensions if item["key"].startswith("dr_")), 40)
         self.assertEqual(sum(item["weight"] for item in dimensions if item["key"].startswith("cross_")), 20)
         self.assertEqual(by_key["or_scenario"]["name"], "OR-应用场景")
+        self.assertNotIn("or_constraints", by_key)
         self.assertNotIn("dr_performance", by_key)
         self.assertNotIn("dr_hardware", by_key)
+        self.assertNotIn("dr_technical", by_key)
         self.assertNotIn("cross_exceptions", by_key)
 
     def test_build_review_packet_keeps_rows_and_core_fields(self):
@@ -123,8 +125,8 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertEqual(packet["groups"][0]["dr_items"][0]["core_fields"]["spec_type"], "接口规格")
         self.assertEqual(packet["groups"][0]["dr_items"][0]["core_fields"]["subsystem"], "网络管理")
         self.assertIn("dr_testability", packet["groups"][0]["dr_items"][0]["dimension_view"])
-        self.assertEqual(packet["groups"][0]["or_dimension_view"]["or_constraints"]["evidence_fields"]["国家/区域"], ["中国"])
-        self.assertEqual(packet["groups"][0]["dr_items"][0]["dimension_view"]["dr_technical"]["evidence_fields"]["规格分类"], ["接口规格"])
+        self.assertNotIn("or_constraints", packet["groups"][0]["or_dimension_view"])
+        self.assertEqual(packet["groups"][0]["dr_items"][0]["dimension_view"]["dr_testability"]["evidence_fields"]["参数规格"], ["次数 1-10"])
         self.assertEqual(packet["groups"][0]["cross_dimension_view"]["cross_dependencies"]["evidence_fields"]["所属子系统"], ["网络管理"])
 
     def test_dimension_view_is_based_on_rubric_relevance_not_on_non_empty_frequency(self):
@@ -187,8 +189,8 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertNotIn("TDS需求描述*", group["raw_fields"])
         self.assertNotIn("tdr_id", dr_item["core_fields"])
         self.assertNotIn("tds_id", dr_item["core_fields"])
-        self.assertNotIn("TDR需求描述*", dr_item["dimension_view"]["dr_technical"]["mapped_fields"])
-        self.assertNotIn("TDS需求描述*", dr_item["dimension_view"]["dr_technical"]["mapped_fields"])
+        self.assertNotIn("TDR需求描述*", dr_item["dimension_view"]["dr_testability"]["mapped_fields"])
+        self.assertNotIn("TDS需求描述*", dr_item["dimension_view"]["dr_testability"]["mapped_fields"])
 
     def test_build_review_packet_only_evaluates_functional_requirements(self):
         functional = self.module.RowRecord(
@@ -368,19 +370,17 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
                 {
                     "or_id": "DOR-1",
                     "or_name": "网络检测",
-                    "total_score": 72,
-                    "or_score": 28,
-                    "dr_average_score": 31,
+                    "total_score": 67,
+                    "or_score": 26,
+                    "dr_average_score": 28,
                     "traceability_score": 13,
-                    "or_user_language_score": 9,
-                    "or_scenario_score": 7,
+                    "or_user_language_score": 10,
+                    "or_scenario_score": 8,
                     "or_user_value_score": 8,
-                    "or_constraints_score": 4,
                     "dr_security_score": 4,
-                    "dr_technical_score": 8,
-                    "dr_testability_score": 7,
-                    "dr_ambiguity_score": 6,
-                    "dr_exception_score": 6,
+                    "dr_testability_score": 12,
+                    "dr_ambiguity_score": 7,
+                    "dr_exception_score": 5,
                     "cross_scope_score": 5,
                     "cross_dependencies_score": 4,
                     "cross_traceability_score": 4,
@@ -394,24 +394,22 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
                 {
                     "or_id": "DOR-2",
                     "or_name": "诊断导出",
-                    "total_score": 81,
-                    "or_score": 32,
-                    "dr_average_score": 34,
+                    "total_score": 77,
+                    "or_score": 30,
+                    "dr_average_score": 32,
                     "traceability_score": 15,
-                    "or_user_language_score": 10,
-                    "or_scenario_score": 9,
-                    "or_user_value_score": 8,
-                    "or_constraints_score": 5,
-                    "dr_security_score": 4,
-                    "dr_technical_score": 9,
-                    "dr_testability_score": 8,
-                    "dr_ambiguity_score": 7,
+                    "or_user_language_score": 11,
+                    "or_scenario_score": 10,
+                    "or_user_value_score": 9,
+                    "dr_security_score": 5,
+                    "dr_testability_score": 13,
+                    "dr_ambiguity_score": 8,
                     "dr_exception_score": 6,
                     "cross_scope_score": 5,
                     "cross_dependencies_score": 5,
                     "cross_traceability_score": 5,
                     "grade": "good",
-                    "weak_dimensions": "OR-约束和限制",
+                    "weak_dimensions": "需求映射一致性",
                     "red_flags": "无",
                     "missing_items": "边界条件",
                     "revision_actions": "补充导出边界",
@@ -424,9 +422,9 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
 
         self.assertEqual(validation["status"], "valid")
         self.assertEqual(len(validation["results"]), 2)
-        self.assertEqual(validation["results"][0]["total_score"], 72)
+        self.assertEqual(validation["results"][0]["total_score"], 67)
         self.assertEqual(validation["results"][0]["weak_dimensions"], ["DR-异常描述"])
-        self.assertEqual(validation["results"][0]["dimension_scores"]["dr_exception"], 6)
+        self.assertEqual(validation["results"][0]["dimension_scores"]["dr_exception"], 5)
 
     def test_validate_result_marks_markdown_table_as_repairable(self):
         rows = [
@@ -557,18 +555,16 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
                 "dr_average_score": 31,
                 "traceability_score": 13,
                 "dimension_scores": {
-                    "or_user_language": 9,
-                    "or_scenario": 7,
-                    "or_user_value": 8,
-                    "or_constraints": 4,
+                    "or_user_language": 10,
+                    "or_scenario": 9,
+                    "or_user_value": 9,
                     "dr_security": 4,
-                    "dr_technical": 8,
-                    "dr_testability": 7,
-                    "dr_ambiguity": 6,
-                    "dr_exception": 6,
+                    "dr_testability": 12,
+                    "dr_ambiguity": 7,
+                    "dr_exception": 5,
                     "cross_scope": 5,
                     "cross_dependencies": 4,
-                    "cross_traceability": 4,
+                    "cross_traceability": 3,
                 },
                 "grade": "fair",
                 "weak_dimensions": ["DR-异常描述"],
@@ -584,7 +580,7 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertEqual(summary["project_name"], "project-a")
         self.assertEqual(summary["average_score"], 72.0)
         self.assertEqual(summary["dimension_summary"][0]["key"], "or_user_language")
-        self.assertEqual(summary["dimension_summary"][0]["normalized_average_score"], 75.0)
+        self.assertEqual(summary["dimension_summary"][0]["normalized_average_score"], 71.43)
         self.assertEqual(summary["weak_dimensions"][0]["name"], "需求映射一致性")
 
     def test_aggregate_requires_all_shards_valid_when_state_exists(self):

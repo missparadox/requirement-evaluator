@@ -32,34 +32,27 @@ Use this file to stabilize scoring decisions. Score with the 100-point structure
 - `Missing`
   - Contains only functional or technical wording with no value statement.
 
-### OR-约束和限制
+### DR-安全分析
 
 - `Meets`
-  - Clearly states at least one critical constraint such as scope, exclusions, compatibility, compliance, deployment, or runtime limitation.
+  - Clearly identifies which business part touches a security red line.
+  - States what security requirement, restriction, or compliance obligation that part must satisfy.
 - `Weak`
-  - Mentions a constraint but does not define the boundary, condition, or acceptance rule.
+  - Mentions security, compliance, or red-line requirements, but does not clearly point to the affected business part or does not state the corresponding requirement concretely.
 - `Missing`
-  - Gives no constraint or limitation at all.
-
-### DR-技术描述
-
-- `Meets`
-  - Clearly defines behavior, inputs and outputs, key conditions, and main processing logic.
-  - Engineering implementation does not depend on major hidden assumptions.
-- `Weak`
-  - Contains technical actions, but misses key parameters, states, boundaries, or expected results.
-- `Missing`
-  - Uses vague wording such as "support", "implement", or "provide" without enough detail to guide implementation.
+  - Gives no security analysis, or only states broad wording such as "符合安全规范" or "满足安全红线要求" without mapping it to a specific business part and requirement.
 
 ### DR-可测试性
 
 - `Meets`
-  - Test points, acceptance conditions, or verification steps can be derived directly.
-  - At least two of the following are explicit: inputs, actions, expected results.
+  - Uses technical language to define behavior, inputs, outputs, conditions, boundaries, and expected results clearly enough to derive test cases and pass criteria directly.
+  - When quantitative statements are present, they include explicit values, ranges, thresholds, units, or frequencies.
 - `Weak`
-  - Test design is possible, but still depends on additional assumptions or unstated pass criteria.
+  - Contains some technical detail, but inputs, outputs, state changes, boundary conditions, or measurable pass criteria are incomplete.
+  - Quantitative expectations may exist but still rely on vague wording or unstated thresholds.
 - `Missing`
-  - Test points cannot be derived directly and the acceptance semantics are not closed.
+  - Relies on broad wording such as "support", "provide", "optimize", "性能高", or "响应快" without concrete behavior definitions or measurable criteria.
+  - Test cases and acceptance rules cannot be derived directly.
 
 ### DR-无歧义性
 
@@ -87,32 +80,43 @@ Use this file to stabilize scoring decisions. Score with the 100-point structure
 ### 需求分解完整性
 
 - `Meets`
-  - The key capability points in the OR are all covered by one or more DRs.
-  - The DR set is sufficient to support implementation and testing of the OR.
+  - The OR's explicit key goals and sub-goals are each carried by one or more DRs.
+  - Core goals are directly decomposed, and supporting DRs are only supplementary rather than substitutes.
 - `Weak`
-  - The main capability is covered, but some expected sub-capabilities are missing or only partially decomposed.
+  - Main capability is covered, but one or more explicit sub-goals, critical constraints, or critical scenarios are only indirectly supported or only partially decomposed.
 - `Missing`
-  - Major capability points in the OR have no clear DR coverage.
+  - Multiple key goals or explicit sub-goals in the OR have no clear DR coverage, so the DR set cannot support implementation or acceptance with confidence.
 
 ### 需求分解边界清晰度
 
 - `Meets`
-  - Each DR has a clear responsibility boundary.
-  - The DR set avoids obvious overlap, duplication, or ownership ambiguity.
+  - Each DR has a single and clear responsibility boundary.
+  - Core-goal DRs and supporting DRs are clearly distinguishable, and the DR set avoids obvious overlap, duplication, or mixed goal-and-background writing.
 - `Weak`
-  - Most DR boundaries are understandable, but some responsibilities overlap or are not sharply separated.
+  - Most DR boundaries are understandable, but some DRs mix core goals with platform reuse, product parameters, release scope, format definition, or other supporting context.
+  - Some responsibilities overlap or are not sharply separated.
 - `Missing`
-  - DR boundaries are blurred, heavily overlapping, or too ambiguous to support clean implementation ownership.
+  - DR boundaries are blurred or heavily mixed.
+  - It is hard to tell which DRs directly carry the OR's core goals and which are only background, scope, or implementation-support information.
 
 ### 需求映射一致性
 
 - `Meets`
-  - The OR-to-DR mapping is semantically coherent.
-  - DRs do not show obvious drift, contradiction, or inconsistent interpretation of the OR.
+  - Each DR directly and semantically responds to an explicit OR goal, object, condition, or expected result.
+  - Supporting DRs, when present, reinforce the OR's explicit scope, constraints, or implementation preconditions rather than substituting for core-goal DRs.
 - `Weak`
-  - The overall mapping is mostly visible, but some DRs are too narrow, too broad, partially off-topic, or weakly mapped.
+  - OR-to-DR mapping is broadly visible, but some DRs only address side content, supporting context, or implementation background instead of directly answering the OR's core goals.
+  - Some mappings are too narrow, too broad, or only partially on target.
 - `Missing`
-  - The OR-to-DR relationship is inconsistent or unclear, so the decomposition cannot be trusted as an accurate implementation of the OR.
+  - OR-to-DR relationship is inconsistent, indirect, or unclear.
+  - The DR set is mostly composed of topically related or supporting DRs while the OR's core goals are not directly carried.
+
+### 支撑型DR说明
+
+- `Valid`
+  - Product parameters, platform reuse, release scope, format definitions, and similar items may be independent DRs when they directly carry explicit OR scope, constraints, or implementation preconditions.
+- `Invalid As Primary Evidence`
+  - Such supporting DRs must not be treated as high-quality mapping evidence when the OR's core business goals still lack directly corresponding DRs.
 
 ### 需求追踪与异常覆盖
 
@@ -130,18 +134,30 @@ Use this file to stabilize scoring decisions. Score with the 100-point structure
 
 - If the OR does not explicitly state user value, business purpose, or compliance/market motivation, the `OR` part must not exceed `24/40`.
 
-### R2 Untestable DR Cap
+### R2 Missing Usage Context Cap
 
-- If a DR does not directly yield test points, acceptance conditions, or verification steps, that DR must not exceed `24/40`.
+- If the OR does not explicitly state the actor, trigger, usage condition, or business context, the `OR` part must not exceed `26/40`.
 
-### R3 Vague DR Technical Description Cap
+### R3 Unmapped Security Red-Line Cap
 
-- If a DR only uses vague wording such as "support", "implement", or "provide" and lacks key behavioral detail, that DR must not exceed `20/40`.
+- If a DR mentions security, compliance, or red-line requirements but does not identify which business part is affected and what requirement it must satisfy, `DR-安全分析` must not exceed `2/6`.
 
-### R4 Incomplete Decomposition Coverage Cap
+### R4 Untestable DR Cap
 
-- If one OR has obviously uncovered key sub-capabilities, `Requirement Decomposition And Traceability Quality` must not exceed `10/20`.
+- If a DR does not clearly define behavior, inputs, outputs, conditions, expected results, or acceptance criteria, so that direct test cases cannot be derived, that DR must not exceed `24/40`.
 
-### R5 Distorted Decomposition Mapping Cap
+### R5 Vague Quantification Cap
 
-- If multiple DRs under one OR are obviously duplicate, conflicting, or cannot be traced back to the OR, `Requirement Decomposition And Traceability Quality` must not exceed `8/20`.
+- If a DR makes performance, capacity, latency, success-rate, frequency, or similar claims using wording such as "较大", "较好", "性能高", or "响应快" without explicit measurable targets, that DR must not exceed `20/40`.
+
+### R6 Happy-Path-Only DR Cap
+
+- If a DR materially involves state changes, external dependencies, security decisions, data processing, or invalid-input risk but only describes the happy path and omits failure, rejection, invalid input, or recovery behavior, that DR must not exceed `30/40`.
+
+### R7 Incomplete Decomposition Coverage Cap
+
+- If one OR has obviously uncovered key sub-capabilities, explicit sub-goals, or critical scenarios, `Requirement Decomposition And Traceability Quality` must not exceed `10/20`.
+
+### R8 Distorted Decomposition Mapping Cap
+
+- If multiple DRs under one OR are duplicate, conflicting, only weakly related, or mostly supporting DRs without directly carrying the OR's core goals, `Requirement Decomposition And Traceability Quality` must not exceed `8/20`.
