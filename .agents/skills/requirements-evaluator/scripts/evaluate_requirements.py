@@ -118,7 +118,6 @@ TSV_COLUMNS = [
     "traceability_score",
     *[f"{item['key']}_score" for item in DIMENSION_COLUMN_SPECS],
     "grade",
-    "weak_dimensions",
     "red_flags",
     "missing_items",
     "revision_actions",
@@ -898,6 +897,18 @@ def normalized_dimension_score(score: float, max_score: int) -> float:
     return round(score / max_score * 100, 2)
 
 
+def derive_weak_dimensions(dimension_scores: Dict[str, int | float]) -> List[str]:
+    weak_dimensions: List[str] = []
+    for spec in DIMENSION_COLUMN_SPECS:
+        key = str(spec["key"])
+        if key not in dimension_scores:
+            continue
+        normalized_score = normalized_dimension_score(float(dimension_scores[key]), int(spec["weight"]))
+        if normalized_score < 70:
+            weak_dimensions.append(str(spec["name"]))
+    return weak_dimensions
+
+
 def split_list_field(value: str) -> List[str]:
     text = clean_text(value)
     if text in {"", "无", "none", "None", "N/A", "n/a"}:
@@ -996,6 +1007,7 @@ def validate_tsv_output(shard: Dict[str, object], raw_output: str) -> Dict[str, 
         summary = clean_text(row.get("evidence_summary", ""))
         if len(summary) > 240:
             row_errors.append("evidence_summary is too long")
+        expected_weak_dimensions = derive_weak_dimensions(dimension_scores)
         if row_errors:
             errors.extend([f"{row.get('or_id', '')}: {message}" for message in row_errors])
             continue
@@ -1009,7 +1021,7 @@ def validate_tsv_output(shard: Dict[str, object], raw_output: str) -> Dict[str, 
                 "traceability_score": compact_number(float(traceability_score)),
                 "dimension_scores": dimension_scores,
                 "grade": grade,
-                "weak_dimensions": split_list_field(row.get("weak_dimensions", "")),
+                "weak_dimensions": expected_weak_dimensions,
                 "red_flags": split_list_field(row.get("red_flags", "")),
                 "missing_items": split_list_field(row.get("missing_items", "")),
                 "revision_actions": split_list_field(row.get("revision_actions", "")),
@@ -1228,6 +1240,8 @@ def render_aggregate_report(packet: Dict[str, object], results: Sequence[Dict[st
             "",
             "## 6. 维度均分画像",
             "",
+            "- 弱项规则: 单个 OR 中标准化维度分低于 70 的维度计入弱项；聚合统计基于验证通过后的弱项结果。",
+            "",
             "| 维度 | 平均得分 | 满分 | 标准化均分 | 弱项命中数 | 弱项命中率 |",
             "| --- | ---: | ---: | ---: | ---: | ---: |",
         ]
@@ -1260,7 +1274,7 @@ def render_aggregate_report(packet: Dict[str, object], results: Sequence[Dict[st
                 f"- 总分: {result.get('total_score', '')}",
                 f"- 等级: {result.get('grade', '')}",
                 f"- 维度分: {dimension_score_text}",
-                f"- 弱项: {'; '.join(result.get('weak_dimensions', [])) or '无'}",
+                f"- 弱项(标准化维度分<70): {'; '.join(result.get('weak_dimensions', [])) or '无'}",
                 f"- 触发红线: {'; '.join(result.get('red_flags', [])) or '无'}",
                 f"- 缺失项: {'; '.join(result.get('missing_items', [])) or '无'}",
                 f"- 修改建议: {'; '.join(result.get('revision_actions', [])) or '无'}",

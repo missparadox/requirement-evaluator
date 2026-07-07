@@ -5,7 +5,7 @@ The model must output TSV only. Do not output Markdown, explanations, bullet lis
 The first line must be this exact header:
 
 ```tsv
-or_id	or_name	total_score	or_score	dr_average_score	traceability_score	or_user_language_score	or_scenario_score	or_user_value_score	dr_security_score	dr_testability_score	dr_ambiguity_score	dr_exception_score	cross_scope_score	cross_dependencies_score	cross_traceability_score	grade	weak_dimensions	red_flags	missing_items	revision_actions	evidence_summary
+or_id	or_name	total_score	or_score	dr_average_score	traceability_score	or_user_language_score	or_scenario_score	or_user_value_score	dr_security_score	dr_testability_score	dr_ambiguity_score	dr_exception_score	cross_scope_score	cross_dependencies_score	cross_traceability_score	grade	red_flags	missing_items	revision_actions	evidence_summary
 ```
 
 Each following line must evaluate exactly one OR from the current shard.
@@ -29,7 +29,6 @@ Each following line must evaluate exactly one OR from the current shard.
 - `cross_dependencies_score`: integer or decimal from 0 to 6.
 - `cross_traceability_score`: integer or decimal from 0 to 7.
 - `grade`: one of `excellent`, `good`, `fair`, `poor`.
-- `weak_dimensions`: weak dimensions separated by semicolons. Use `无` when none.
 - `red_flags`: red-flag issues separated by semicolons. Use `无` when none.
 - `missing_items`: missing items separated by semicolons. Use `无` when none.
 - `revision_actions`: concrete revision actions separated by semicolons. Use `无` when none.
@@ -49,11 +48,12 @@ Each following line must evaluate exactly one OR from the current shard.
 - Use `good` for scores >= 75 and < 90.
 - Use `fair` for scores >= 60 and < 75.
 - Use `poor` for scores < 60.
+- The script derives weak dimensions after validation using `normalized score = dimension_score / max_score * 100`, and marks every dimension below 70 as weak.
 
 ## Example
 
 ```tsv
-or_id	or_name	total_score	or_score	dr_average_score	traceability_score	or_user_language_score	or_scenario_score	or_user_value_score	dr_security_score	dr_testability_score	dr_ambiguity_score	dr_exception_score	cross_scope_score	cross_dependencies_score	cross_traceability_score	grade	weak_dimensions	red_flags	missing_items	revision_actions	evidence_summary
-OR-001	登录认证	67	26	28	13	10	8	8	4	12	7	5	5	4	4	fair	DR-异常描述;DR-可测试性	缺少异常路径	验收条件;边界条件	补充失败场景;补充验收标准	需求有基本技术描述，但缺少异常和验收闭环。
-OR-002	权限校验	77	30	32	15	11	10	9	5	13	8	6	5	5	5	good	需求映射一致性	无	边界条件	补充权限边界和失败响应	权限行为较清楚，但核心映射和边界仍可继续收紧。
+or_id	or_name	total_score	or_score	dr_average_score	traceability_score	or_user_language_score	or_scenario_score	or_user_value_score	dr_security_score	dr_testability_score	dr_ambiguity_score	dr_exception_score	cross_scope_score	cross_dependencies_score	cross_traceability_score	grade	red_flags	missing_items	revision_actions	evidence_summary
+OR-001	登录认证	67	26	28	13	10	8	8	4	12	7	5	5	4	4	fair	缺少异常路径	验收条件;边界条件	补充失败场景;补充验收标准	需求有基本技术描述，但缺少异常和验收闭环。
+OR-002	权限校验	77	30	32	15	11	10	9	5	13	8	6	5	5	5	good	无	边界条件	补充权限边界和失败响应	权限行为较清楚，但核心映射和边界仍可继续收紧。
 ```

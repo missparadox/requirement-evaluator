@@ -62,6 +62,7 @@ Apply these tiers within each dimension:
 
 Mark a dimension as missing or weak when evidence is not explicit. Do not assume intent. Mark `N/A` only when the dimension is genuinely not applicable, and explain the basis in your internal reasoning before scoring.
 Do not treat a blank or omitted spreadsheet column as evidence of a requirement gap by itself. If the same meaning is stated in OR, DR, or DS text, use that substantive text as evidence instead of marking a missing item only because a dedicated Excel field is blank.
+Weak dimensions in the final report are derived by the script from numeric scores only: every dimension whose normalized score is below 70% of its weight is marked weak.
 
 ## Common Negative Signals
 

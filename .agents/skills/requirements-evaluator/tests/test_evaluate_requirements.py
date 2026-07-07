@@ -385,7 +385,6 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
                     "cross_dependencies_score": 4,
                     "cross_traceability_score": 4,
                     "grade": "fair",
-                    "weak_dimensions": "DR-异常描述",
                     "red_flags": "缺少异常路径",
                     "missing_items": "验收条件",
                     "revision_actions": "补充异常场景",
@@ -409,7 +408,6 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
                     "cross_dependencies_score": 5,
                     "cross_traceability_score": 5,
                     "grade": "good",
-                    "weak_dimensions": "需求映射一致性",
                     "red_flags": "无",
                     "missing_items": "边界条件",
                     "revision_actions": "补充导出边界",
@@ -423,8 +421,12 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
         self.assertEqual(validation["status"], "valid")
         self.assertEqual(len(validation["results"]), 2)
         self.assertEqual(validation["results"][0]["total_score"], 67)
-        self.assertEqual(validation["results"][0]["weak_dimensions"], ["DR-异常描述"])
+        self.assertEqual(
+            validation["results"][0]["weak_dimensions"],
+            ["OR-应用场景", "OR-用户价值", "DR-安全分析", "DR-异常描述", "需求分解边界清晰度", "需求映射一致性"],
+        )
         self.assertEqual(validation["results"][0]["dimension_scores"]["dr_exception"], 5)
+        self.assertEqual(validation["results"][1]["weak_dimensions"], [])
 
     def test_validate_result_marks_markdown_table_as_repairable(self):
         rows = [
@@ -520,8 +522,20 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
                 "or_score": 28,
                 "dr_average_score": 31,
                 "traceability_score": 13,
+                "dimension_scores": {
+                    "or_user_language": 10,
+                    "or_scenario": 9,
+                    "or_user_value": 9,
+                    "dr_security": 4,
+                    "dr_testability": 12,
+                    "dr_ambiguity": 7,
+                    "dr_exception": 5,
+                    "cross_scope": 5,
+                    "cross_dependencies": 4,
+                    "cross_traceability": 4,
+                },
                 "grade": "fair",
-                "weak_dimensions": ["DR-异常描述"],
+                "weak_dimensions": ["DR-安全分析", "DR-异常描述", "需求分解边界清晰度", "需求映射一致性"],
                 "red_flags": ["缺少异常路径"],
                 "missing_items": ["验收条件"],
                 "revision_actions": ["补充异常场景"],
@@ -567,7 +581,7 @@ class RequirementsEvaluatorPacketTests(unittest.TestCase):
                     "cross_traceability": 3,
                 },
                 "grade": "fair",
-                "weak_dimensions": ["DR-异常描述"],
+                "weak_dimensions": ["DR-安全分析", "DR-异常描述", "需求分解边界清晰度", "需求映射一致性"],
                 "red_flags": ["缺少异常路径"],
                 "missing_items": ["验收条件"],
                 "revision_actions": ["补充异常场景"],
